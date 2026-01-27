@@ -1,0 +1,20 @@
+{
+  "name": "backend-auth",
+  "scripts": {
+    "dev": "wrangler dev --port 8788",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute furban-auth-db --file=./schema.sql --local",
+    "db:init:remote": "wrangler d1 execute furban-auth-db --file=./schema.sql"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/bcryptjs": "^2.4.6",
+    "formdata-node": "^6.0.3",
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
+  }
+}
