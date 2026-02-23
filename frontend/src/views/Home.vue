@@ -94,11 +94,11 @@
               <div class="space-y-6">
                 
                 <p class="text-lg text-gray-700 dark:text-gray-200 leading-relaxed">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+                  {{ $t('about.description1') }}
                 </p>
                 
                 <p class="text-lg text-gray-700 dark:text-gray-200 leading-relaxed">
-                  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
+                  {{ $t('about.description2') }}
                 </p>
               </div>
             </div>
@@ -107,19 +107,8 @@
             <div class="grid grid-cols-1 gap-4">
               <div class="backdrop-blur-sm bg-white/20 dark:bg-gray-800/20 rounded-2xl p-6 border border-white/30 dark:border-gray-700/30 text-center hover:bg-white/30 dark:hover:bg-gray-800/30 transition-all duration-300">
                 <div class="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">100+</div>
-                <div class="text-sm text-gray-600 dark:text-gray-300">Community Members</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300">{{ $t('about.members') }}</div>
               </div>
-            </div>
-            
-            <!-- CTA Button -->
-            <div class="pt-4">
-              <button class="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-primary-500 to-blue-600 rounded-2xl hover:from-primary-600 hover:to-blue-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl">
-                <span class="relative z-10">Join Our Community</span>
-                <div class="absolute inset-0 bg-gradient-to-r from-primary-400 to-blue-500 rounded-2xl blur opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-                <svg class="w-5 h-5 ml-2 transform group-hover/btn:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </button>
             </div>
           </div>
         </div>
@@ -167,7 +156,7 @@
           <div 
             v-for="(item, index) in filteredGalleryItems" 
             :key="index"
-            class="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-rotate-1 bg-white dark:bg-gray-800"
+            class="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800"
             :style="{ animationDelay: `${index * 100}ms` }"
           >
             <!-- Image Container -->
@@ -175,7 +164,7 @@
               <img 
                 :src="getImageUrl(item)" 
                 :alt="item.title"
-                class="w-full h-full object-cover group-hover:scale-125 transition-transform duration-700 ease-out"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               >
               
               <!-- Gradient Overlay -->
@@ -237,14 +226,14 @@
         
         <!-- Featured Post -->
         <div v-if="featuredPost" class="mb-16">
-          <div class="group relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-[1.02] bg-white dark:bg-gray-800">
+          <div class="group relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300 bg-white dark:bg-gray-800">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
               <!-- Featured Image -->
               <div class="relative overflow-hidden lg:order-1">
                 <img 
                   :src="getImageUrl(featuredPost)" 
                   :alt="featuredPost.title"
-                  class="w-full h-64 lg:h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  class="w-full h-64 lg:h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 >
                 <div class="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <div class="absolute top-6 left-6">
@@ -298,7 +287,7 @@
           <article 
             v-for="(post, index) in regularBlogPosts" 
             :key="post.id"
-            class="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 hover:-rotate-1 bg-white dark:bg-gray-800"
+            class="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800"
             :style="{ animationDelay: `${index * 100}ms` }"
           >
             <!-- Image Container -->
@@ -307,7 +296,7 @@
                 <img 
                   :src="getImageUrl(post)" 
                   :alt="post.title"
-                  class="w-full h-48 object-cover group-hover:scale-125 transition-transform duration-700 ease-out"
+                  class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                 >
               </div>
               
@@ -377,81 +366,75 @@
       </div>
     </section>
 
-    <!-- Socials Section -->
-    <section id="socials" class="min-h-screen py-20 bg-white dark:bg-gray-800">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-12">
-          <h2 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6">
-            {{ $t('socials.title') }}
-          </h2>
-          <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            {{ $t('socials.subtitle') }}
-          </p>
-        </div>
-        
-        <!-- Social Links -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-          <!-- Telegram -->
-          <a 
-            href="https://t.me/furbanbandung" 
-            target="_blank"
-            class="card p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:scale-105 group"
-          >
-            <div class="w-16 h-16 mx-auto mb-4 bg-blue-500 rounded-full flex items-center justify-center group-hover:bg-blue-600 transition-colors">
-              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+
+
+    <!-- Footer -->
+    <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <!-- Brand -->
+          <div class="flex items-center justify-center md:justify-start h-full">
+            <img src="/furban.png" alt="Furban Logo" class="w-16 h-16 object-contain" />
+          </div>
+
+          <!-- Links -->
+          <div class="flex flex-col items-center md:items-start space-y-3">
+            <h4 class="text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white">
+              {{ $t('footer.links') }}
+            </h4>
+            <router-link to="/privacy-policy" class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              {{ $t('footer.privacyPolicy') }}
+            </router-link>
+            <router-link to="/terms-of-service" class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              {{ $t('footer.termsOfService') }}
+            </router-link>
+            <router-link to="/faq" class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              {{ $t('footer.faq') }}
+            </router-link>
+          </div>
+
+          <!-- Contact & Socials -->
+          <div class="flex flex-col items-center md:items-start space-y-3">
+            <h4 class="text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white">
+              {{ $t('footer.contactAndSocials') }}
+            </h4>
+            <a href="mailto:contact@furban.my.id" class="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+              <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
+              contact@furban.my.id
+            </a>
+            <div class="flex items-center space-x-4 pt-2">
+              <!-- Telegram -->
+              <!-- <a href="https://t.me/furbanbandung" target="_blank" class="text-gray-400 hover:text-blue-500 transition-colors" aria-label="Telegram">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+              </a> -->
+              <!-- Instagram -->
+              <!--
+              <a href="https://instagram.com/furbanbandung" target="_blank" class="text-gray-400 hover:text-pink-500 transition-colors" aria-label="Instagram">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.664.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.664-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.664-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.668.072-4.849.2-4.358 2.618-6.78 6.98-6.98C8.333 2.175 8.741 2.163 12 2.163zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                </svg>
+              </a> -->
+              <!-- More coming soon -->
+              <span class="text-xs text-gray-400 dark:text-gray-500 italic">{{ $t('footer.comingSoon') }}</span>
             </div>
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Telegram</h3>
-            <p class="text-gray-600 dark:text-gray-300 mb-4">
-              Join our Telegram group for daily discussions and updates
-            </p>
-            <span class="text-blue-500 font-medium group-hover:text-blue-600 transition-colors">
-              @furbanbandung
-            </span>
-          </a>
-          
-          <!-- Instagram -->
-          <a 
-            href="https://instagram.com/furbanbandung" 
-            target="_blank"
-            class="card p-8 text-center hover:shadow-xl transition-all duration-300 transform hover:scale-105 group"
-          >
-            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center group-hover:from-purple-600 group-hover:to-pink-600 transition-colors">
-              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2.163c3.204 0 3.664.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.664-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.664-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.668.072 4.849.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Instagram</h3>
-            <p class="text-gray-600 dark:text-gray-300 mb-4">
-              Follow us for photos and community highlights
-            </p>
-            <span class="text-pink-500 font-medium group-hover:text-pink-600 transition-colors">
-              @furbanbandung
-            </span>
-          </a>
+          </div>
         </div>
-        
-        <!-- Contact Info -->
-        <div class="mt-16 text-center">
-          <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            {{ $t('socials.contact') }}
-          </h3>
-          <p class="text-lg text-gray-600 dark:text-gray-300 mb-4">
-            Have questions or want to get involved? Reach out to us!
+
+        <!-- Tagline + Bottom bar -->
+        <div class="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700 text-center space-y-3">
+          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+            {{ $t('footer.tagline') }}
           </p>
-          <a 
-            href="mailto:contact@furbanbandung.com" 
-            class="inline-flex items-center text-primary-600 dark:text-primary-400 font-medium hover:underline"
-          >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            contact@furbanbandung.com
-          </a>
+          <p class="text-sm text-gray-400 dark:text-gray-500">
+            &copy; {{ new Date().getFullYear() }} Furban. {{ $t('footer.rights') }}
+          </p>
         </div>
       </div>
-    </section>
+    </footer>
   </div>
 </template>
 
@@ -598,7 +581,7 @@ export default {
       if (path.startsWith('http')) {
         return path
       } else {
-        const baseServerUrl = apiConfig.baseURL.split('/api')[0]
+        const baseServerUrl = apiConfig.rootURL
         if (path.startsWith('/')) {
              return `${baseServerUrl}${path}`
         }

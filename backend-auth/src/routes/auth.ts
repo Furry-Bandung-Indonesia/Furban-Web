@@ -1,13 +1,17 @@
 import { Hono } from 'hono'
 import { TokenService } from '../services/token'
 import { PasswordService } from '../services/password'
+import { verifyGoogleToken } from '../services/google'
 import { authMiddleware } from '../middleware/auth'
+import { verifyTurnstile } from '../middleware/turnstile'
 
 type Bindings = {
   DB: D1Database
   JWT_SECRET: string
   JWT_EXPIRE_HOURS: string
   BUCKET: R2Bucket
+  TURNSTILE_BYPASS?: string
+  TURNSTILE_SECRET?: string
 }
 
 const app = new Hono<{ Bindings: Bindings, Variables: { user: any } }>()
@@ -18,7 +22,20 @@ const app = new Hono<{ Bindings: Bindings, Variables: { user: any } }>()
  */
 app.post('/register', async (c) => {
   try {
-    const { email, password } = await c.req.json()
+    const { email, password, turnstile_token } = await c.req.json()
+
+    // Verify Turnstile CAPTCHA
+    if (!turnstile_token) {
+      return c.json({ message: 'Captcha verification is required' }, 400)
+    }
+
+    const ip = c.req.header('CF-Connecting-IP') || undefined
+    const bypass = c.env.TURNSTILE_BYPASS === 'true'
+    const turnstileResult = await verifyTurnstile(turnstile_token, ip, bypass, c.env.TURNSTILE_SECRET)
+    if (!turnstileResult.success) {
+      console.error('Turnstile verification failed:', turnstileResult.errorCodes)
+      return c.json({ message: 'Captcha verification failed. Please try again.' }, 403)
+    }
 
     // Validate required fields
     if (!email || !password) {
@@ -48,21 +65,28 @@ app.post('/register', async (c) => {
 
     // Hash password
     const passwordHash = await PasswordService.hash(password)
-
-    // Generate UUID
     const uuid = crypto.randomUUID()
     const now = new Date().toISOString()
 
-    // Determine role - first user is admin
+    // Determine role — first user is admin
     const userCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users').first()
     const isFirstUser = !userCount || (userCount.count as number) === 0
     const role = isFirstUser ? 'admin' : 'user'
 
-    // Insert user with pending_profile = 1
+    // Create user
     await c.env.DB.prepare(`
-      INSERT INTO users (uuid, email, password_hash, role, is_active, pending_profile, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(uuid, email.toLowerCase(), passwordHash, role, 1, 1, now, now).run()
+      INSERT INTO users (uuid, email, password_hash, role, is_active, pending_profile, auth_provider, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      uuid,
+      email.toLowerCase(),
+      passwordHash,
+      role,
+      1,        // is_active
+      1,        // pending_profile
+      'local',  // auth_provider
+      now, now
+    ).run()
 
     // Generate tokens
     const tokenService = new TokenService(c.env.JWT_SECRET, parseInt(c.env.JWT_EXPIRE_HOURS || '48'))
@@ -86,73 +110,165 @@ app.post('/register', async (c) => {
       }
     }, 201)
   } catch (e: any) {
-    console.error('Registration Error:', e)
+    console.error('Register Error:', e)
     return c.json({ message: 'Registration failed', error: e.message }, 500)
   }
 })
 
 /**
- * POST /auth/register/profile
- * Step 2: Complete profile with legal name and nickname
+ * POST /auth/google
+ * Google OAuth login/register
  */
-app.post('/register/profile', authMiddleware, async (c) => {
+app.post('/google', async (c) => {
   try {
-    const user = c.get('user')
-    const { legal_name, nickname } = await c.req.json()
+    const { credential } = await c.req.json()
 
-    // Validate required fields
-    if (!legal_name || !nickname) {
-      return c.json({ message: 'Legal name and nickname are required' }, 400)
+    if (!credential) {
+      return c.json({ message: 'Google credential is required' }, 400)
     }
 
-    // Validate lengths
-    if (legal_name.length < 2 || legal_name.length > 100) {
-      return c.json({ message: 'Legal name must be between 2 and 100 characters' }, 400)
+    const clientId = c.env.GOOGLE_CLIENT_ID
+    if (!clientId) {
+      return c.json({ message: 'Google client ID not configured on server' }, 500)
     }
 
-    if (nickname.length < 2 || nickname.length > 50) {
-      return c.json({ message: 'Nickname must be between 2 and 50 characters' }, 400)
+    // Verify the Google ID token
+    const googlePayload = await verifyGoogleToken(credential, clientId)
+    if (!googlePayload) {
+      return c.json({ message: 'Invalid Google credential. Please try again.' }, 403)
     }
 
+    const email = googlePayload.email?.toLowerCase()
+    const googleId = googlePayload.sub
+    const name = googlePayload.name || ''
+    const picture = googlePayload.picture || ''
+
+    if (!email) {
+      return c.json({ message: 'Google account has no email address' }, 400)
+    }
+
+    const tokenService = new TokenService(c.env.JWT_SECRET, parseInt(c.env.JWT_EXPIRE_HOURS || '48'))
     const now = new Date().toISOString()
 
-    // Update user profile
-    await c.env.DB.prepare(`
-      UPDATE users 
-      SET legal_name = ?, nickname = ?, pending_profile = 0, updated_at = ?
-      WHERE uuid = ?
-    `).bind(legal_name, nickname, now, user.sub).run()
-
-    // Fetch updated user
-    const updatedUser = await c.env.DB.prepare('SELECT * FROM users WHERE uuid = ?')
-      .bind(user.sub)
+    // Check if user already exists by google_id or email
+    let user = await c.env.DB.prepare('SELECT * FROM users WHERE google_id = ? OR email = ?')
+      .bind(googleId, email)
       .first()
 
-    // Generate new token with updated profile status
-    const tokenService = new TokenService(c.env.JWT_SECRET, parseInt(c.env.JWT_EXPIRE_HOURS || '48'))
+    if (user) {
+      // Existing user — check if account is active
+      if (user.is_active === 0) {
+        return c.json({ message: 'Account is suspended. Please contact admin.' }, 403)
+      }
+
+      // If user exists by email but hasn't linked Google yet, link it now
+      if (!user.google_id) {
+        await c.env.DB.prepare(
+          'UPDATE users SET google_id = ?, auth_provider = CASE WHEN auth_provider = \'local\' THEN \'local,google\' ELSE auth_provider END, updated_at = ? WHERE uuid = ?'
+        ).bind(googleId, now, user.uuid).run()
+      }
+
+      // Update profile photo from Google if user has none
+      if (!user.profile_image_url && picture) {
+        await c.env.DB.prepare(
+          'UPDATE users SET profile_image_url = ?, updated_at = ? WHERE uuid = ?'
+        ).bind(picture, now, user.uuid).run()
+        user.profile_image_url = picture
+      }
+
+      // Update nickname from Google name if still pending profile
+      if (user.pending_profile === 1 && name) {
+        const nickname = googlePayload.given_name || name.split(' ')[0]
+        await c.env.DB.prepare(
+          'UPDATE users SET nickname = ?, legal_name = ?, pending_profile = 0, updated_at = ? WHERE uuid = ?'
+        ).bind(nickname, name, now, user.uuid).run()
+        user.nickname = nickname
+        user.legal_name = name
+        user.pending_profile = 0
+      }
+
+      // Generate tokens for existing user
+      const accessToken = await tokenService.generateAccessToken({
+        uuid: user.uuid as string,
+        email: user.email as string,
+        role: user.role as string,
+        nickname: user.nickname as string || undefined,
+        pending_profile: user.pending_profile === 1
+      })
+      const refreshToken = await tokenService.generateRefreshToken(user.uuid as string)
+
+      return c.json({
+        message: 'Login successful',
+        token: accessToken,
+        refreshToken,
+        user: {
+          uuid: user.uuid,
+          email: user.email,
+          role: user.role,
+          legal_name: user.legal_name,
+          nickname: user.nickname,
+          profile_image_url: user.profile_image_url,
+          pending_profile: user.pending_profile === 1
+        }
+      })
+    }
+
+    // New user — create account via Google
+    const uuid = crypto.randomUUID()
+
+    // Determine role — first user is admin
+    const userCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM users').first()
+    const isFirstUser = !userCount || (userCount.count as number) === 0
+    const role = isFirstUser ? 'admin' : 'user'
+
+    // Extract nickname from Google name
+    const nickname = googlePayload.given_name || name.split(' ')[0] || email.split('@')[0]
+
+    // Google users don't need password — use a placeholder hash
+    const placeholderHash = '__GOOGLE_OAUTH__'
+
+    await c.env.DB.prepare(`
+      INSERT INTO users (uuid, email, password_hash, role, legal_name, nickname, profile_image_url, is_active, pending_profile, auth_provider, google_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      uuid, email, placeholderHash, role,
+      name || null,           // legal_name from Google
+      nickname,               // nickname from Google given_name
+      picture || null,        // profile_image_url from Google
+      1,                      // is_active
+      0,                      // pending_profile = 0 (Google provides name)
+      'google',               // auth_provider
+      googleId,               // google_id
+      now, now
+    ).run()
+
+    // Generate tokens
     const accessToken = await tokenService.generateAccessToken({
-      uuid: updatedUser!.uuid as string,
-      email: updatedUser!.email as string,
-      role: updatedUser!.role as string,
-      nickname: updatedUser!.nickname as string,
+      uuid,
+      email,
+      role,
+      nickname,
       pending_profile: false
     })
+    const refreshToken = await tokenService.generateRefreshToken(uuid)
 
     return c.json({
-      message: 'Profile completed successfully',
+      message: 'Registration successful',
       token: accessToken,
+      refreshToken,
       user: {
-        uuid: updatedUser!.uuid,
-        email: updatedUser!.email,
-        role: updatedUser!.role,
-        legal_name: updatedUser!.legal_name,
-        nickname: updatedUser!.nickname,
+        uuid,
+        email,
+        role,
+        legal_name: name || null,
+        nickname,
+        profile_image_url: picture || null,
         pending_profile: false
       }
-    })
+    }, 201)
   } catch (e: any) {
-    console.error('Profile Completion Error:', e)
-    return c.json({ message: 'Profile completion failed', error: e.message }, 500)
+    console.error('Google Auth Error:', e)
+    return c.json({ message: 'Google authentication failed', error: e.message }, 500)
   }
 })
 
@@ -196,6 +312,11 @@ app.post('/login', async (c) => {
 
     if (!user) {
       return c.json({ message: 'Invalid credentials' }, 401)
+    }
+
+    // Block login for Google-only accounts (no password set)
+    if ((user.password_hash as string) === '__GOOGLE_OAUTH__') {
+      return c.json({ message: 'This account uses Google Sign-In. Please use the "Sign in with Google" button.' }, 400)
     }
 
     // Verify password
@@ -306,39 +427,10 @@ app.post('/refresh', async (c) => {
 })
 
 /**
- * GET /auth/me
- * Get current user profile
+ * NOTE: GET /auth/me is handled by profileRoutes (routes/profile.ts)
+ * which returns the full user profile including first_name, last_name,
+ * date_of_birth, phone_number, etc.
  */
-app.get('/me', authMiddleware, async (c) => {
-  try {
-    const userPayload = c.get('user')
-
-    const user = await c.env.DB.prepare('SELECT * FROM users WHERE uuid = ?')
-      .bind(userPayload.sub)
-      .first()
-
-    if (!user) {
-      return c.json({ message: 'User not found' }, 404)
-    }
-
-    return c.json({
-      user: {
-        uuid: user.uuid,
-        email: user.email,
-        role: user.role,
-        legal_name: user.legal_name,
-        nickname: user.nickname,
-        profile_image_url: user.profile_image_url,
-        pending_profile: user.pending_profile === 1,
-        is_active: user.is_active === 1,
-        created_at: user.created_at
-      }
-    })
-  } catch (e: any) {
-    console.error('Get Profile Error:', e)
-    return c.json({ message: 'Failed to get profile', error: e.message }, 500)
-  }
-})
 
 /**
  * POST /auth/me/password
@@ -428,6 +520,93 @@ app.post('/me/avatar', authMiddleware, async (c) => {
   } catch (e: any) {
     console.error('Avatar Upload Error:', e)
     return c.json({ message: 'Failed to upload avatar', error: e.message }, 500)
+  }
+})
+
+// ═══════════════════════════════════════════════════
+// USER SEARCH (for host assignment in ticketing)
+// ═══════════════════════════════════════════════════
+
+/**
+ * GET /auth/users/search?q=...
+ * Search users by nickname, email, legal_name, first_name, last_name.
+ * Requires authentication. Returns max 10 results with limited fields.
+ */
+app.get('/users/search', authMiddleware, async (c) => {
+  const q = c.req.query('q')?.trim()
+  if (!q || q.length < 2) {
+    return c.json({ users: [], message: 'Query must be at least 2 characters' })
+  }
+
+  try {
+    const pattern = `%${q}%`
+    const { results } = await c.env.DB.prepare(`
+      SELECT uuid, email, nickname, legal_name, first_name, last_name, profile_image_url, role
+      FROM users
+      WHERE (
+        nickname LIKE ? OR
+        email LIKE ? OR
+        legal_name LIKE ? OR
+        first_name LIKE ? OR
+        last_name LIKE ?
+      )
+      AND is_active = 1
+      ORDER BY nickname ASC
+      LIMIT 10
+    `).bind(pattern, pattern, pattern, pattern, pattern).all()
+
+    return c.json({
+      users: (results || []).map((u: any) => ({
+        uuid: u.uuid,
+        email: u.email,
+        nickname: u.nickname,
+        legal_name: u.legal_name,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        profile_image_url: u.profile_image_url,
+        role: u.role,
+      })),
+    })
+  } catch (e: any) {
+    console.error('User Search Error:', e)
+    return c.json({ message: 'Failed to search users', error: e.message }, 500)
+  }
+})
+
+/**
+ * GET /auth/users/:uuid/profile
+ * Public profile — any authenticated user can view another user's basic info.
+ * Returns only safe public fields (no password_hash, no sensitive data).
+ */
+app.get('/users/:uuid/profile', authMiddleware, async (c) => {
+  const uuid = c.req.param('uuid')
+
+  try {
+    const user = await c.env.DB.prepare(
+      `SELECT uuid, email, nickname, legal_name, first_name, last_name,
+              date_of_birth, phone_number, profile_image_url, role
+       FROM users WHERE uuid = ?`
+    ).bind(uuid).first() as any
+
+    if (!user) return c.json({ message: 'User not found' }, 404)
+
+    return c.json({
+      user: {
+        uuid: user.uuid,
+        email: user.email,
+        nickname: user.nickname,
+        legal_name: user.legal_name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        date_of_birth: user.date_of_birth,
+        phone_number: user.phone_number,
+        profile_image_url: user.profile_image_url,
+        role: user.role,
+      },
+    })
+  } catch (e: any) {
+    console.error('Get User Profile Error:', e)
+    return c.json({ message: 'Failed to get user profile', error: e.message }, 500)
   }
 })
 

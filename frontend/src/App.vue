@@ -26,7 +26,20 @@ export default {
     
     // Check if current route should hide the public navbar
     const shouldHideNavbar = computed(() => {
-      const hiddenRoutes = ['/admin', '/login', '/register', '/publisher', '/photographer', '/dashboard', '/manage-profile', '/manage-blogs', '/manage-photos', '/manage-users']
+      if (route.path.startsWith('/event/ticket/') && route.path.endsWith('/fill')) {
+        return true
+      }
+
+      const hiddenRoutes = [
+        '/admin',
+        '/login',
+        '/register',
+        '/publisher',
+        '/photographer',
+        '/dashboard',
+        '/event/manage',
+        '/event/payment'
+      ]
       return hiddenRoutes.some(path => route.path.startsWith(path))
     })
     

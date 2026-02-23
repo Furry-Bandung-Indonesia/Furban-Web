@@ -24,11 +24,11 @@
       <!-- Blog Posts Grid -->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         <article v-for="post in blogPosts" :key="post.id" 
-          class="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] overflow-hidden">
+          class="group bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
           <!-- Post Image -->
           <div class="aspect-w-16 aspect-h-9 overflow-hidden">
              <img :src="getImageUrl(post)" :alt="post.title"
-               class="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
+               class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                @error="(e) => e.target.src = 'https://placehold.co/600x400?text=No+Image'">
           </div>
 
@@ -181,7 +181,7 @@ export default {
       if (!path) return '/furban.png'
       if (path.startsWith('data:') || path.startsWith('http')) return path
       
-      const baseServerUrl = apiConfig.baseURL.split('/api')[0]
+      const baseServerUrl = apiConfig.rootURL
       if (path.startsWith('/')) {
          return `${baseServerUrl}${path}`
       }

@@ -1,3 +1,7 @@
 .wrangler
 wrangler.toml
 node_modules
+scripts
+dummy_data.sql
+schema.sql
+reset_content_db.sql

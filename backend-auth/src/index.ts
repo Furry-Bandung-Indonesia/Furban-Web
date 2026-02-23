@@ -16,11 +16,31 @@ const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS configuration
 app.use('*', cors({
-  origin: ['http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5000'],
+  origin: (origin) => {
+    const allowed = [
+      'http://localhost:5000',
+      'http://localhost:5173',
+      'http://127.0.0.1:5000',
+      'https://furban.my.id',
+      'https://bandung.furries.id',
+      'https://api.furban.my.id',
+    ]
+    if (!origin || allowed.includes(origin)) return origin
+    return null
+  },
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }))
+
+// Cache control — Prevent Cloudflare CDN from caching API responses
+app.use('/api/*', async (c, next) => {
+  await next()
+  if (!c.res.headers.has('Cache-Control')) {
+    c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    c.res.headers.set('Pragma', 'no-cache')
+  }
+})
 
 // Health check
 app.get('/', (c) => {
@@ -41,7 +61,14 @@ app.get('/images/*', async (c) => {
     const object = await c.env.BUCKET.get(path)
     
     if (!object) {
-      return c.json({ message: 'Image not found' }, 404)
+      // Return a proper image error (not JSON) to avoid ORB blocking
+      return new Response('Not Found', {
+        status: 404,
+        headers: {
+          'Content-Type': 'text/plain',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
     }
     
     // Get content type from object metadata or derive from extension
@@ -55,16 +82,69 @@ app.get('/images/*', async (c) => {
     }
     const contentType = object.httpMetadata?.contentType || mimeTypes[ext || ''] || 'application/octet-stream'
     
-    // Return the image
+    // Return the image with CORS headers
     return new Response(object.body, {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
       }
     })
   } catch (e: any) {
     console.error('Image serving error:', e)
-    return c.json({ message: 'Failed to serve image' }, 500)
+    return new Response('Server Error', {
+      status: 500,
+      headers: {
+        'Content-Type': 'text/plain',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
+  }
+})
+
+// Also serve /avatars/* directly (handles URLs without /images/ prefix)
+app.get('/avatars/*', async (c) => {
+  try {
+    const path = c.req.path.replace('/', '') // "avatars/..."
+    
+    const object = await c.env.BUCKET.get(path)
+    
+    if (!object) {
+      return new Response('Not Found', {
+        status: 404,
+        headers: {
+          'Content-Type': 'text/plain',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
+    }
+    
+    const ext = path.split('.').pop()?.toLowerCase()
+    const mimeTypes: Record<string, string> = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg', 
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp'
+    }
+    const contentType = object.httpMetadata?.contentType || mimeTypes[ext || ''] || 'application/octet-stream'
+    
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
+  } catch (e: any) {
+    console.error('Image serving error:', e)
+    return new Response('Server Error', {
+      status: 500,
+      headers: {
+        'Content-Type': 'text/plain',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   }
 })
 

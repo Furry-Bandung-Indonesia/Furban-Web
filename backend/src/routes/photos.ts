@@ -22,7 +22,8 @@ const enrichPhoto = (photo: any) => {
   return {
     ...photo,
     url,
-    variants
+    variants,
+    photographer: photo.author_name || 'Unknown'
   }
 }
 
@@ -37,15 +38,36 @@ app.get('/all', authMiddleware, roleGuard(['admin']), async (c) => {
   return c.json(results.map(enrichPhoto))
 })
 
-// Public: Get approved photos
+// Public: Get approved photos (with pagination)
 app.get('/', async (c) => {
+  const page = parseInt(c.req.query('page') || '1')
+  const limit = parseInt(c.req.query('limit') || '20')
+  const offset = (page - 1) * limit
+
+  // Get total count
+  const countResult = await c.env.DB.prepare(
+    'SELECT COUNT(*) as total FROM photos WHERE status = ?'
+  ).bind('approved').first()
+  const total = (countResult as any)?.total || 0
+
   const { results } = await c.env.DB.prepare(
     `SELECT *, mini_desc as title, tags as album 
      FROM photos 
      WHERE status = ? 
-     ORDER BY created_at DESC`
-  ).bind('approved').all()
-  return c.json(results.map(enrichPhoto))
+     ORDER BY created_at DESC
+     LIMIT ? OFFSET ?`
+  ).bind('approved', limit, offset).all()
+
+  return c.json({
+    data: results.map(enrichPhoto),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasMore: offset + results.length < total
+    }
+  })
 })
 
 app.get('/:id', async (c) => {
@@ -92,9 +114,23 @@ app.delete('/:id', authMiddleware, roleGuard(['photographer', 'admin']), async (
 
 
 
-// Protected: Upload
+// Protected: Upload (max 20 photos per day)
 app.post('/', authMiddleware, roleGuard(['photographer', 'publisher', 'admin']), async (c) => {
   try {
+    const user = c.get('user')
+
+    // Rate limit: 20 uploads per day (admin exempt)
+    if (user.role !== 'admin') {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const countResult = await c.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM photos WHERE user_id = ? AND created_at >= ?'
+      ).bind(user.sub, oneDayAgo).first()
+      const uploadCount = (countResult as any)?.count || 0
+      if (uploadCount >= 20) {
+        return c.json({ message: 'Upload limit reached. Maximum 20 photos per day.' }, 429)
+      }
+    }
+
     const body = await c.req.parseBody()
     const file = body['file']
     const camera = body['camera'] as string || ''
@@ -122,6 +158,7 @@ app.post('/', authMiddleware, roleGuard(['photographer', 'publisher', 'admin']),
 
     const user = c.get('user')
     const id = crypto.randomUUID()
+    const authorName = user.nickname || user.email || 'Unknown'
     // Only treat as file if it has name (File object)
     const filename = (file instanceof File) ? `${Date.now()}_${file.name}` : `${Date.now()}_unknown`
 
@@ -136,8 +173,8 @@ app.post('/', authMiddleware, roleGuard(['photographer', 'publisher', 'admin']),
     const status = user.role === 'admin' ? 'approved' : 'pending'
 
     // Save to DB
-    await c.env.DB.prepare('INSERT INTO photos (id, user_id, filename, camera, mini_desc, tags, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, user.sub, filename, camera, mini_desc, tags, status)
+    await c.env.DB.prepare('INSERT INTO photos (id, user_id, filename, camera, mini_desc, tags, status, author_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, user.sub, filename, camera, mini_desc, tags, status, authorName)
       .run()
 
     // Fetch and return full object

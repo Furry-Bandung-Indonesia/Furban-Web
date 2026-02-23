@@ -1,0 +1,58 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Ticketing Backend Dev",
+			"type": "shell",
+			"command": "cd d:\\SERVER\\Furban-Web\\backend-ticketing && npx wrangler dev --port 8789",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Ticketing Backend Dev",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Ticketing Dev Server",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Ticketing Backend Dev 8789",
+			"type": "shell",
+			"command": "cd d:\\SERVER\\Furban-Web\\backend-ticketing && npx wrangler dev --port 8789",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Ticketing Backend",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Ticketing Backend Dev",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true
+		},
+		{
+			"label": "Ticketing Backend Dev 2",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true
+		},
+		{
+			"label": "Ticketing Backend Dev",
+			"type": "shell",
+			"command": "Set-Location d:\\SERVER\\Furban-Web\\backend-ticketing; npx wrangler dev --port 8789",
+			"isBackground": true
+		}
+	]
+}

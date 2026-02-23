@@ -1,0 +1,7 @@
+.wrangler
+node_modules
+scripts
+API-DOCUMENTATION.md
+schema.sql
+seed.sql
+wrangler.toml

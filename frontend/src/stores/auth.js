@@ -80,14 +80,14 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Register Step 1 - Email and Password
    */
-  const register = async (email, password) => {
+  const register = async (email, password, turnstileToken) => {
     isLoading.value = true
     error.value = null
 
     logger.info('Registration attempt', { email })
 
     try {
-      const response = await authApi.register(email, password)
+      const response = await authApi.register(email, password, turnstileToken)
 
       token.value = response.token
       user.value = response.user
@@ -98,6 +98,35 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       error.value = err.message
       logger.error('Registration failed', { email, error: err.message })
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Google Sign-In / Register
+   * Sends Google ID token to backend for verification and login/registration
+   */
+  const googleAuth = async (credential) => {
+    isLoading.value = true
+    error.value = null
+
+    logger.info('Google auth attempt')
+
+    try {
+      const response = await authApi.googleAuth(credential)
+
+      token.value = response.token
+      user.value = response.user
+      lastAuthCheck.value = Date.now()
+
+      logger.info('Google auth successful', { userId: response.user.uuid })
+
+      return response
+    } catch (err) {
+      error.value = err.message
+      logger.error('Google auth failed', { error: err.message })
       throw err
     } finally {
       isLoading.value = false
@@ -255,8 +284,9 @@ export const useAuthStore = defineStore('auth', () => {
   const getDashboardRoute = () => {
     if (!user.value) return '/login'
     
-    // All users go to unified dashboard
-    // Profile completion is handled via notification banner in dashboard
+    // Regular users go to /profile (no sidebar dashboard)
+    // Admin/photographer/publisher go to full dashboard
+    if (user.value.role === 'user') return '/profile'
     return '/dashboard'
   }
 
@@ -273,6 +303,7 @@ export const useAuthStore = defineStore('auth', () => {
     needsProfileCompletion,
     login,
     register,
+    googleAuth,
     completeProfile,
     logout,
     checkAuth,

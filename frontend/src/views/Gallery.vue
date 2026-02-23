@@ -46,13 +46,13 @@
         <div 
           v-for="(item, index) in filteredGalleryItems" 
           :key="item.id"
-          class="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          class="group relative overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
         >
           <div class="aspect-w-16 aspect-h-12">
             <img 
               :src="getImageUrl(item)" 
               :alt="item.title"
-              class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
+              class="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
               @error="handleImageError"
             >
           </div>
@@ -69,7 +69,7 @@
       </div>
       
       <!-- Load More Button -->
-      <div class="text-center mt-12">
+      <div v-if="hasMore" class="text-center mt-12">
         <button @click="loadMore" class="btn-primary">
           {{ $t('gallery.loadMore') }}
         </button>
@@ -94,6 +94,7 @@ export default {
     const limit = ref(9)
     const selectedCategory = ref('all')
     const albumCategories = ref([])
+    const hasMore = ref(true)
     
     // Use the fetched album categories instead of extracting from gallery items
     const availableCategories = computed(() => {
@@ -139,7 +140,7 @@ export default {
         return path
       }
       
-      const baseServerUrl = apiConfig.baseURL.split('/api')[0]
+      const baseServerUrl = apiConfig.rootURL
       
       // If it's a relative path from our new backend (starts with /images)
       if (path.startsWith('/')) {
@@ -210,6 +211,8 @@ export default {
     const fetchGallery = async () => {
       try {
         loading.value = true
+        page.value = 1
+        hasMore.value = true
         console.log('Fetching gallery data...')
         const response = await apiService.getGallery({ 
           page: page.value, 
@@ -217,18 +220,21 @@ export default {
         })
         console.log('Gallery API response:', response)
         
-        const galleryData = Array.isArray(response) ? response : (response.data || [])
+        // Handle paginated response { data: [], pagination: {} }
+        const galleryData = response.data ? response.data : (Array.isArray(response) ? response : [])
+        const pagination = response.pagination || null
         
         if (galleryData && galleryData.length > 0) {
-          // If it's the 'all' category, shuffle the items
-          if (selectedCategory.value === 'all') {
-            galleryItems.value = galleryData.sort(() => Math.random() - 0.5)
-          } else {
-            galleryItems.value = galleryData
-          }
+          galleryItems.value = galleryData
         } else {
           console.warn('No gallery items returned from API')
           galleryItems.value = []
+        }
+        
+        if (pagination) {
+          hasMore.value = pagination.hasMore
+        } else {
+          hasMore.value = false
         }
         
         loading.value = false
@@ -241,6 +247,7 @@ export default {
     
     // Load more items
     const loadMore = async () => {
+      if (!hasMore.value) return
       page.value++
       try {
         const response = await apiService.getGallery({ 
@@ -248,10 +255,20 @@ export default {
           limit: limit.value 
         })
         
-        const galleryData = Array.isArray(response) ? response : (response.data || [])
+        const galleryData = response.data ? response.data : (Array.isArray(response) ? response : [])
+        const pagination = response.pagination || null
         
         if (galleryData && galleryData.length > 0) {
-          galleryItems.value = [...galleryItems.value, ...galleryData]
+          // Deduplicate by id before appending
+          const existingIds = new Set(galleryItems.value.map(item => item.id))
+          const newItems = galleryData.filter(item => !existingIds.has(item.id))
+          galleryItems.value = [...galleryItems.value, ...newItems]
+        }
+        
+        if (pagination) {
+          hasMore.value = pagination.hasMore
+        } else {
+          hasMore.value = false
         }
       } catch (err) {
         console.error('Error loading more items:', err)
@@ -275,7 +292,8 @@ export default {
       getImageUrl,
       handleImageError,
       filterGallery,
-      loadMore
+      loadMore,
+      hasMore
     }
   }
 }

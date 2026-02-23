@@ -1,5 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787';
 const AUTH_API_BASE_URL = import.meta.env.VITE_AUTH_API_BASE_URL || 'http://localhost:8788';
+const TICKET_API_BASE_URL = import.meta.env.VITE_TICKET_API_BASE_URL || 'http://localhost:8789';
 
 /**
  * Get the full URL for an auth service image (avatars)
@@ -31,10 +32,24 @@ export function getImageUrl(path) {
   return `${API_BASE_URL}${path}`;
 }
 
+/**
+ * Get the full URL for a ticketing service image (event banners)
+ * @param {string} path - The image filename (e.g., events/banner.jpg)
+ * @returns {string} The full URL
+ */
+export function getTicketImageUrl(path) {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  return `${TICKET_API_BASE_URL}/images/${path}`;
+}
+
 export default {
   rootURL: API_BASE_URL,
   baseURL: `${API_BASE_URL}/api`,
   authURL: AUTH_API_BASE_URL,
+  ticketURL: TICKET_API_BASE_URL,
   endpoints: {
     // Auth endpoints (backend-auth service)
     auth: '/auth',

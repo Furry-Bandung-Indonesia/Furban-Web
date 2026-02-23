@@ -15,11 +15,32 @@ const app = new Hono<{ Bindings: Bindings, Variables: { user: any } }>()
 
 // CORS configuration - allow both auth service and frontend
 app.use('*', cors({
-  origin: ['http://localhost:5000', 'http://localhost:5173', 'http://127.0.0.1:5000', 'http://localhost:8788'],
+  origin: (origin) => {
+    const allowed = [
+      'http://localhost:5000',
+      'http://localhost:5173',
+      'http://127.0.0.1:5000',
+      'http://localhost:8788',
+      'https://furban.my.id',
+      'https://bandung.furries.id',
+      'https://auth.furban.my.id',
+    ]
+    if (!origin || allowed.includes(origin)) return origin
+    return null
+  },
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 }))
+
+// Cache control — Prevent Cloudflare CDN from caching API responses
+app.use('/api/*', async (c, next) => {
+  await next()
+  if (!c.res.headers.has('Cache-Control')) {
+    c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
+    c.res.headers.set('Pragma', 'no-cache')
+  }
+})
 
 // Health check
 app.get('/api/health', (c) => {

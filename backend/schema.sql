@@ -15,6 +15,7 @@ CREATE TABLE photos (
   tags TEXT,
   status TEXT CHECK(status IN ('pending','approved','rejected')) DEFAULT 'pending',
   approval_reason TEXT,
+  author_name TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -30,6 +31,7 @@ CREATE TABLE blogs (
   status TEXT CHECK(status IN ('pending','approved','rejected')) DEFAULT 'pending',
   approval_reason TEXT,
   photo_filename TEXT,
+  author_name TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

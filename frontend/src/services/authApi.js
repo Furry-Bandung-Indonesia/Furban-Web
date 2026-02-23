@@ -137,10 +137,10 @@ class AuthApiService {
   /**
    * Register Step 1 - Email and Password
    */
-  async register(email, password) {
+  async register(email, password, turnstileToken) {
     const data = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstile_token: turnstileToken }),
     });
     
     if (data.token) {
@@ -184,6 +184,29 @@ class AuthApiService {
     const data = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    });
+    
+    if (data.token) {
+      this.setToken(data.token);
+    }
+    if (data.refreshToken) {
+      this.setRefreshToken(data.refreshToken);
+    }
+    if (data.user) {
+      localStorage.setItem('userData', JSON.stringify(data.user));
+    }
+    
+    return data;
+  }
+
+  /**
+   * Google Sign-In / Register
+   * Sends Google ID token credential to backend for verification
+   */
+  async googleAuth(credential) {
+    const data = await this.request('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
     });
     
     if (data.token) {
@@ -299,6 +322,15 @@ class AuthApiService {
   }
 
   /**
+   * Get user public profile by UUID (any authenticated user)
+   * Returns: uuid, email, nickname, legal_name, first_name, last_name,
+   *          date_of_birth, phone_number, profile_image_url, role
+   */
+  async getUserProfile(uuid) {
+    return this.request(`/auth/users/${uuid}/profile`, { method: 'GET' });
+  }
+
+  /**
    * Create user (admin only)
    */
   async createUser(userData) {
@@ -375,6 +407,19 @@ class AuthApiService {
    */
   async adminDeleteUser(uuid) {
     return this.deleteUser(uuid);
+  }
+
+  // ═══════════════════════════════════════════════════
+  // USER SEARCH (for host assignment)
+  // ═══════════════════════════════════════════════════
+
+  /**
+   * Search users by name, nickname, or email.
+   * @param {string} query - Search term (min 2 chars)
+   * @returns {{ users: Array<{ uuid, email, nickname, legal_name, first_name, last_name, profile_image_url, role }> }}
+   */
+  async searchUsers(query) {
+    return this.request(`/auth/users/search?q=${encodeURIComponent(query)}`);
   }
 }
 

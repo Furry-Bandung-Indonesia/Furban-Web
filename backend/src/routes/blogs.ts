@@ -24,9 +24,8 @@ const enrichBlog = (blog: any) => {
     ...blog,
     image: url || null,
     variants,
-    // Add author field for frontend (using user_id)
     author: blog.user_id ? {
-      username: blog.author_name || 'Publisher',
+      username: blog.author_name || 'Unknown',
       id: blog.user_id
     } : null
   }
@@ -121,6 +120,7 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
     const id = crypto.randomUUID()
     // Simple slug generation
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now()
+    const authorName = user.nickname || user.email || 'Unknown'
 
     let photo_filename = null
     if (image && image instanceof File) {
@@ -137,8 +137,8 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
     // Let's set to 'approved' if admin.
     const status = user.role === 'admin' ? 'approved' : 'pending'
 
-    await c.env.DB.prepare('INSERT INTO blogs (id, user_id, title, slug, content, mini_desc, tags, photo_filename, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(id, user.sub, title, slug, content, mini_desc, tags, photo_filename, status)
+    await c.env.DB.prepare('INSERT INTO blogs (id, user_id, title, slug, content, mini_desc, tags, photo_filename, status, author_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, user.sub, title, slug, content, mini_desc, tags, photo_filename, status, authorName)
       .run()
 
     // Fetch and return full object

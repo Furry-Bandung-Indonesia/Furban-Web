@@ -1,78 +1,71 @@
 <template>
-  <div class="space-y-6">
-    <div class="flex justify-between items-center bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-      <h3 class="text-xl font-bold text-gray-900 dark:text-white">
-        {{ isAdmin ? 'All Blogs' : 'My Blogs' }}
-      </h3>
-      <button
-        @click="showCreateBlog = true"
-        class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition duration-200 flex items-center"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-        </svg>
-        Create New Blog Post
+  <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h2 class="text-2xl font-bold text-white">{{ isAdmin ? 'All Blogs' : 'My Blogs' }}</h2>
+        <p class="text-slate-400 text-sm mt-1">{{ blogs.length }} post{{ blogs.length !== 1 ? 's' : '' }} total</p>
+      </div>
+      <button @click="showCreateBlog = true"
+        class="bg-[#0df2f2] hover:bg-[#0bd8d8] text-[#101622] px-5 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#0df2f2]/20 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+        New Blog Post
       </button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="text-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-      <p class="text-gray-500 mt-4">Loading blogs...</p>
+    <!-- Loading -->
+    <div v-if="loading" class="text-center py-16">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0df2f2] mx-auto"></div>
+      <p class="text-slate-500 mt-4 text-sm">Loading blogs...</p>
     </div>
 
-    <div v-else-if="blogs.length === 0" class="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow">
-      <p class="text-gray-500 dark:text-gray-400">No blog posts found</p>
+    <!-- Empty State -->
+    <div v-else-if="blogs.length === 0" class="text-center py-16 bg-[#111318] border border-slate-800 rounded-xl">
+      <svg class="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+      <p class="text-slate-400">No blog posts found</p>
+      <p class="text-slate-500 text-sm mt-1">Create your first blog post to get started.</p>
     </div>
 
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div v-for="blog in blogs" :key="blog.id" class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-full">
-        <!-- Blog Card Content -->
-        <div class="h-48 w-full bg-gray-200 dark:bg-gray-700 relative">
-          <img 
-            :src="getBlogImageUrl(blog)" 
-            class="w-full h-full object-cover"
-            @error="(e) => e.target.src = 'https://placehold.co/600x400?text=No+Image'"
-          />
+    <!-- Blog Cards Grid -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div v-for="blog in blogs" :key="blog.id"
+        class="bg-[#111318] border border-slate-800 rounded-xl overflow-hidden hover:border-slate-700 transition-all flex flex-col">
+        <!-- Cover Image -->
+        <div class="h-44 w-full bg-slate-800 relative">
+          <img :src="getBlogImageUrl(blog)" class="w-full h-full object-cover" @error="(e) => e.target.src = 'https://placehold.co/600x400/111318/334155?text=No+Image'" />
+          <span :class="getStatusClass(blog.status)" class="absolute top-3 right-3 px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
+            {{ blog.status }}
+          </span>
         </div>
         <div class="p-5 flex-1 flex flex-col">
           <div class="flex-1">
-            <div class="flex items-center justify-between mb-3">
-              <span :class="getStatusClass(blog.status)" class="px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wide">
-                {{ blog.status }}
-              </span>
-              <span class="text-xs text-gray-500 dark:text-gray-400">
-                {{ formatBlogAuthor(blog.author) }} • {{ new Date(blog.created_at).toLocaleDateString() }}
-              </span>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-2">
+              <span>{{ formatBlogAuthor(blog.author) }}</span>
+              <span>&bull;</span>
+              <span>{{ new Date(blog.created_at).toLocaleDateString() }}</span>
             </div>
-            <h4 class="text-xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-1">{{ blog.title }}</h4>
-            <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">{{ blog.description || blog.mini_desc }}</p>
-            
-            <p v-if="blog.status === 'rejected' && blog.approval_reason" class="text-xs text-red-600 mt-1 bg-red-50 p-2 rounded">
-              Reason: {{ blog.approval_reason }}
-            </p>
+            <h4 class="text-lg font-bold text-white mb-2 line-clamp-1">{{ blog.title }}</h4>
+            <p class="text-sm text-slate-400 line-clamp-2 mb-3">{{ blog.description || blog.mini_desc }}</p>
+            <div v-if="blog.status === 'rejected' && blog.approval_reason"
+              class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-2.5 rounded-lg">
+              <span class="font-bold">Rejected:</span> {{ blog.approval_reason }}
+            </div>
           </div>
 
-          <div class="mt-4 flex items-center justify-between border-t border-gray-100 dark:border-gray-700 pt-4">
-            <!-- Admin Approval Controls -->
-            <div v-if="isAdmin && blog.status === 'pending'" class="flex space-x-2">
-              <button @click="handleApprove(blog)" class="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200">Approve</button>
-              <button @click="confirmReject(blog)" class="px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">Reject</button>
+          <div class="mt-4 flex items-center justify-between border-t border-slate-800 pt-4">
+            <!-- Admin Approval -->
+            <div v-if="isAdmin && blog.status === 'pending'" class="flex gap-2">
+              <button @click="handleApprove(blog)" class="px-3 py-1.5 bg-emerald-500/15 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-500/25 transition-colors">Approve</button>
+              <button @click="confirmReject(blog)" class="px-3 py-1.5 bg-red-500/15 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/25 transition-colors">Reject</button>
             </div>
             <div v-else></div>
-            
-            <!-- Owner Actions -->
-            <div class="flex space-x-2">
-              <button v-if="canEdit(blog)" @click="openEditBlog(blog)" class="p-2 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Edit">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                </svg>
+            <!-- Actions -->
+            <div class="flex gap-1">
+              <button v-if="canEdit(blog)" @click="openEditBlog(blog)" class="p-2 text-slate-500 hover:text-[#0df2f2] transition-colors rounded-lg hover:bg-[#0df2f2]/10" title="Edit">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
               </button>
-              <!-- Delete only for Admin -->
-              <button v-if="isAdmin" @click="confirmDelete(blog)" class="p-2 text-gray-500 hover:text-red-600 transition-colors" title="Delete">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                </svg>
+              <button v-if="isAdmin" @click="confirmDelete(blog)" class="p-2 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Delete">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
           </div>
@@ -80,52 +73,43 @@
       </div>
     </div>
 
-    <!-- Blog Form Modal (Create / Edit) -->
-    <div v-if="showCreateBlog" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 backdrop-blur-sm">
-      <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-3xl border border-gray-100 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
+    <!-- Blog Form Modal -->
+    <div v-if="showCreateBlog" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+      <div class="bg-[#111318] border border-slate-700 p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
-          <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ isEditingBlog ? 'Edit Blog Post' : 'Create New Blog Post' }}</h3>
-          <button @click="closeBlogModal" class="text-gray-400 hover:text-gray-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          <h3 class="text-xl font-bold text-white">{{ isEditingBlog ? 'Edit Blog Post' : 'Create New Blog Post' }}</h3>
+          <button @click="closeBlogModal" class="text-slate-400 hover:text-white p-1">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
         <form @submit.prevent="submitBlog" class="space-y-5">
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-            <input v-model="blogForm.title" required class="block w-full border border-gray-300 dark:border-gray-600 p-3 rounded-xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <label class="block text-sm font-medium text-slate-300 mb-1.5">Title</label>
+            <input v-model="blogForm.title" required class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category (Tags)</label>
-            <input v-model="blogForm.category" placeholder="e.g. Urban, Lifestyle" class="block w-full border border-gray-300 dark:border-gray-600 p-3 rounded-xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+            <label class="block text-sm font-medium text-slate-300 mb-1.5">Category (Tags)</label>
+            <input v-model="blogForm.category" placeholder="e.g. Urban, Lifestyle" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Short Description</label>
-            <textarea v-model="blogForm.description" rows="2" class="block w-full border border-gray-300 dark:border-gray-600 p-3 rounded-xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+            <label class="block text-sm font-medium text-slate-300 mb-1.5">Short Description</label>
+            <textarea v-model="blogForm.description" rows="2" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none resize-none"></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content (Markdown supported)</label>
-            <textarea v-model="blogForm.content" required rows="10" class="block w-full border border-gray-300 dark:border-gray-600 p-3 rounded-xl dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"></textarea>
+            <label class="block text-sm font-medium text-slate-300 mb-1.5">Content (Markdown supported)</label>
+            <textarea v-model="blogForm.content" required rows="10" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none font-mono text-sm resize-none"></textarea>
           </div>
-          
-          <!-- Image Upload / Replacement -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cover Image</label>
-            
-            <!-- Current Image Preview (in Edit Mode) -->
-            <div v-if="isEditingBlog && blogForm.existingImage && !blogForm.image" class="mb-3 relative group w-48 h-32 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+            <label class="block text-sm font-medium text-slate-300 mb-1.5">Cover Image</label>
+            <div v-if="isEditingBlog && blogForm.existingImage && !blogForm.image" class="mb-3 w-48 h-32 rounded-lg overflow-hidden border border-slate-700">
               <img :src="getRefUrl(blogForm.existingImage)" class="w-full h-full object-cover" />
-              <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span class="text-white text-xs">Current Image</span>
-              </div>
             </div>
-            
-            <input type="file" @change="handleBlogImageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-gray-700 dark:file:text-gray-300" />
-            <p v-if="isEditingBlog" class="text-xs text-gray-500 mt-1">Leave empty to keep current image.</p>
+            <input type="file" @change="handleBlogImageUpload" accept="image/*" class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0df2f2]/10 file:text-[#0df2f2] hover:file:bg-[#0df2f2]/20 cursor-pointer" />
+            <p v-if="isEditingBlog" class="text-xs text-slate-500 mt-1">Leave empty to keep current image.</p>
           </div>
-          
-          <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <button type="button" @click="closeBlogModal" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium">Cancel</button>
-            <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium shadow-lg shadow-indigo-200 dark:shadow-none transition-all disabled:opacity-50">
+          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <button type="button" @click="closeBlogModal" class="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 font-medium transition-colors">Cancel</button>
+            <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-[#0df2f2] text-[#101622] rounded-lg hover:bg-[#0bd8d8] font-bold shadow-lg shadow-[#0df2f2]/20 transition-all disabled:opacity-50">
               {{ submitting ? 'Saving...' : (isEditingBlog ? 'Save Changes' : 'Publish Post') }}
             </button>
           </div>
@@ -143,13 +127,13 @@
     />
 
     <!-- Reject Reason Modal -->
-    <div v-if="showRejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg w-96">
-        <h3 class="font-bold mb-4 dark:text-white">Reject Reason</h3>
-        <textarea v-model="rejectReason" class="w-full border p-2 rounded h-24 dark:bg-gray-700 dark:text-white" placeholder="Why is this rejected?"></textarea>
-        <div class="flex justify-end space-x-2 mt-4">
-          <button @click="showRejectModal = false" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-          <button @click="executeReject" class="px-4 py-2 bg-red-600 text-white rounded">Reject</button>
+    <div v-if="showRejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div class="bg-[#111318] border border-slate-700 p-6 rounded-xl shadow-2xl w-full max-w-md">
+        <h3 class="font-bold text-white mb-4">Reject Reason</h3>
+        <textarea v-model="rejectReason" class="w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 h-28 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none resize-none" placeholder="Why is this rejected?"></textarea>
+        <div class="flex justify-end gap-2 mt-4">
+          <button @click="showRejectModal = false" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors">Cancel</button>
+          <button @click="executeReject" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold transition-colors">Reject</button>
         </div>
       </div>
     </div>
@@ -196,9 +180,9 @@ const canEdit = (blog) => {
 // Helper functions
 const getStatusClass = (status) => {
   switch (status) {
-    case 'approved': return 'bg-green-100 text-green-800'
-    case 'rejected': return 'bg-red-100 text-red-800'
-    default: return 'bg-yellow-100 text-yellow-800'
+    case 'approved': return 'bg-emerald-500/20 text-emerald-400'
+    case 'rejected': return 'bg-red-500/20 text-red-400'
+    default: return 'bg-yellow-500/20 text-yellow-400'
   }
 }
 

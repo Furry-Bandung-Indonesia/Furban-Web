@@ -277,7 +277,7 @@ Components:
 * JWT must be validated on protected endpoints
 * File upload only accepts: png, jpg, webp
 * Max image size: 8MB
-* Maximum 5 uploads per minute
+* Maximum 20 photo uploads per day
 * Only admin can approve or reject
 * Rejected content must save reason
 

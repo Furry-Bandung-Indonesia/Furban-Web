@@ -38,7 +38,12 @@ app.get('/', async (c) => {
         role: user.role,
         legal_name: user.legal_name,
         nickname: user.nickname,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        date_of_birth: user.date_of_birth,
+        phone_number: user.phone_number,
         profile_image_url: user.profile_image_url,
+        auth_provider: user.auth_provider || 'local',
         pending_profile: user.pending_profile === 1,
         is_active: user.is_active === 1,
         created_at: user.created_at,
@@ -58,7 +63,7 @@ app.get('/', async (c) => {
 app.patch('/', async (c) => {
   try {
     const userPayload = c.get('user')
-    const { legal_name, nickname } = await c.req.json()
+    const { legal_name, nickname, first_name, last_name, date_of_birth, phone_number } = await c.req.json()
 
     const updates: string[] = []
     const values: any[] = []
@@ -77,6 +82,38 @@ app.patch('/', async (c) => {
       }
       updates.push('nickname = ?')
       values.push(nickname)
+    }
+
+    if (first_name !== undefined) {
+      if (first_name && (first_name.length < 1 || first_name.length > 100)) {
+        return c.json({ message: 'First name must be between 1 and 100 characters' }, 400)
+      }
+      updates.push('first_name = ?')
+      values.push(first_name || null)
+    }
+
+    if (last_name !== undefined) {
+      if (last_name && (last_name.length < 1 || last_name.length > 100)) {
+        return c.json({ message: 'Last name must be between 1 and 100 characters' }, 400)
+      }
+      updates.push('last_name = ?')
+      values.push(last_name || null)
+    }
+
+    if (date_of_birth !== undefined) {
+      if (date_of_birth && !/^\d{4}-\d{2}-\d{2}$/.test(date_of_birth)) {
+        return c.json({ message: 'Date of birth must be in YYYY-MM-DD format' }, 400)
+      }
+      updates.push('date_of_birth = ?')
+      values.push(date_of_birth || null)
+    }
+
+    if (phone_number !== undefined) {
+      if (phone_number && (phone_number.length < 5 || phone_number.length > 20)) {
+        return c.json({ message: 'Phone number must be between 5 and 20 characters' }, 400)
+      }
+      updates.push('phone_number = ?')
+      values.push(phone_number || null)
     }
 
     if (updates.length === 0) {
@@ -105,6 +142,10 @@ app.patch('/', async (c) => {
         role: user!.role,
         legal_name: user!.legal_name,
         nickname: user!.nickname,
+        first_name: user!.first_name,
+        last_name: user!.last_name,
+        date_of_birth: user!.date_of_birth,
+        phone_number: user!.phone_number,
         profile_image_url: user!.profile_image_url
       }
     })
@@ -127,12 +168,6 @@ app.patch('/password', async (c) => {
       return c.json({ message: 'Old password and new password are required' }, 400)
     }
 
-    // Validate new password strength
-    const passwordError = PasswordService.validate(new_password)
-    if (passwordError) {
-      return c.json({ message: passwordError }, 400)
-    }
-
     // Fetch current user
     const user = await c.env.DB.prepare('SELECT * FROM users WHERE uuid = ?')
       .bind(userPayload.sub)
@@ -140,6 +175,17 @@ app.patch('/password', async (c) => {
 
     if (!user) {
       return c.json({ message: 'User not found' }, 404)
+    }
+
+    // Block password change for Google-only accounts
+    if (user.auth_provider === 'google' && !user.password_hash) {
+      return c.json({ message: 'Password cannot be changed for accounts signed in with Google. Please manage your password through your Google account.' }, 403)
+    }
+
+    // Validate new password strength
+    const passwordError = PasswordService.validate(new_password)
+    if (passwordError) {
+      return c.json({ message: passwordError }, 400)
     }
 
     // Verify old password
@@ -191,12 +237,16 @@ app.post('/avatar', async (c) => {
 
     // Generate filename
     const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `avatars/${userPayload.sub}_${Date.now()}.${ext}`
+    const filename = `avatars/${userPayload.sub}-${Date.now()}.${ext}`
 
-    // Upload to R2
-    await c.env.BUCKET.put(filename, file)
+    // Upload to R2 with proper content-type
+    await c.env.BUCKET.put(filename, file, {
+      httpMetadata: {
+        contentType: file.type,
+      },
+    })
 
-    // Generate URL
+    // Generate URL (use /images/ prefix for consistency)
     const imageUrl = `/images/${filename}`
     const now = new Date().toISOString()
 

@@ -48,8 +48,8 @@
         </p>
         
         <div 
-          v-html="post.content" 
-          class="blog-content text-gray-800 dark:text-gray-100 leading-relaxed overflow-x-hidden whitespace-pre-wrap break-words"
+          v-html="renderedContent" 
+          class="blog-content text-gray-800 dark:text-gray-100 leading-relaxed overflow-x-hidden break-words"
         ></div>
       </div>
     
@@ -58,17 +58,7 @@
       <footer class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-4">
-            <span class="text-gray-600 dark:text-gray-300">Share this post:</span>
-            <button class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors duration-200">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
-              </svg>
-            </button>
-            <button class="text-blue-800 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors duration-200">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/>
-              </svg>
-            </button>
+          
           </div>
         </div>
       </footer>
@@ -77,10 +67,40 @@
 </template>
 
 <script>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
+import mermaid from 'mermaid'
 import ApiService from '../services/api.js'
 import apiConfig from '../config/api.js'
+
+// Initialize mermaid
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'loose',
+})
+
+// Initialize markdown-it with common options
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+})
+
+// Custom fence renderer: turn ```mermaid blocks into <pre class="mermaid">
+const defaultFence = md.renderer.rules.fence?.bind(md.renderer.rules) || 
+  function(tokens, idx, options, env, self) { return self.renderToken(tokens, idx, options) }
+
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const token = tokens[idx]
+  if (token.info.trim().toLowerCase() === 'mermaid') {
+    return `<pre class="mermaid">${md.utils.escapeHtml(token.content)}</pre>`
+  }
+  return defaultFence(tokens, idx, options, env, self)
+}
 
 export default {
   name: 'BlogPost',
@@ -93,6 +113,36 @@ export default {
     const nextPost = ref(null)
     const loading = ref(true)
     const error = ref(null)
+
+    // Render markdown content to sanitized HTML
+    const renderedContent = computed(() => {
+      if (!post.value.content) return ''
+      const rawHtml = md.render(post.value.content)
+      return DOMPurify.sanitize(rawHtml, {
+        ADD_TAGS: ['pre'],
+        ADD_ATTR: ['class'],
+      })
+    })
+
+    // Re-render mermaid diagrams whenever content changes
+    const renderMermaid = async () => {
+      await nextTick()
+      try {
+        // Reset mermaid IDs to avoid conflicts on re-render
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+          securityLevel: 'loose',
+        })
+        await mermaid.run({ querySelector: '.blog-content .mermaid' })
+      } catch (e) {
+        console.warn('Mermaid rendering error:', e)
+      }
+    }
+
+    watch(renderedContent, () => {
+      renderMermaid()
+    })
     
     const formatDate = (dateString) => {
       if (!dateString) return 'No date'
@@ -117,7 +167,7 @@ export default {
       
       if (path.startsWith('data:') || path.startsWith('http')) return path
       
-      const baseServerUrl = apiConfig.baseURL.split('/api')[0]
+      const baseServerUrl = apiConfig.rootURL
       if (path.startsWith('/')) {
         return `${baseServerUrl}${path}`
       }
@@ -182,6 +232,7 @@ export default {
 
     return {
       post,
+      renderedContent,
       previousPost,
       nextPost,
       loading,
@@ -273,6 +324,73 @@ export default {
 
 .dark .blog-content em,
 .dark .blog-content i {
-  color: rgb(243 244 246); /* gray-100 */
+  color: rgb(243 244 246);
 }
+
+.blog-content code {
+  background-color: rgb(243 244 246);
+  color: rgb(220 38 38);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.dark .blog-content code {
+  background-color: rgb(31 41 55);
+  color: rgb(251 146 60);
+}
+
+.blog-content pre {
+  background-color: rgb(31 41 55);
+  color: rgb(229 231 235);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.blog-content pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.875em;
+}
+
+.blog-content blockquote {
+  border-left: 4px solid rgb(99 102 241);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: rgb(107 114 128);
+  font-style: italic;
+}
+
+.dark .blog-content blockquote {
+  border-left-color: rgb(129 140 248);
+  color: rgb(156 163 175);
+}
+
+.blog-content hr {
+  border-color: rgb(229 231 235);
+  margin: 2rem 0;
+}
+
+.dark .blog-content hr {
+  border-color: rgb(55 65 81);
+}
+
+.blog-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.blog-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+
+.blog-content h1 { font-size: 2rem; }
+.blog-content h2 { font-size: 1.5rem; margin-top: 2rem; }
+.blog-content h3 { font-size: 1.25rem; margin-top: 1.5rem; }
+.blog-content h4 { font-size: 1.125rem; margin-top: 1.25rem; }
 </style>
