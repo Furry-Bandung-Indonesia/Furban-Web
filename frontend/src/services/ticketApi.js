@@ -591,8 +591,10 @@ class TicketApiService {
     return this.request(`/api/payment/status/${refId}`)
   }
 
-  // ═══════════════════════════════════════════════════
-  // ADMIN — Event Financials
+  /** Get existing payment transaction for a ticket (for restoring state after refresh) */
+  async getPaymentForTicket(ticketId) {
+    return this.request(`/api/payment/for-ticket/${ticketId}`)
+  }
   // ═══════════════════════════════════════════════════
 
   /** Get financial summary for an event */

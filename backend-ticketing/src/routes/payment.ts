@@ -261,6 +261,35 @@ payment.post('/generate', authMiddleware, async (c) => {
       await expireSingleTicket(c.env.DB, c.env.KV, ticket_uuid)
       return c.json({ message: 'Ticket claim has expired. Please claim a new ticket.' }, 410)
     }
+
+    // Return existing pending transaction if one is still valid (prevents duplicates on refresh)
+    const existingTxn = await c.env.DB.prepare(
+      `SELECT * FROM payment_transactions WHERE ticket_uuid = ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1`
+    ).bind(ticket_uuid).first() as PaymentTransactionRow | null
+
+    if (existingTxn) {
+      const isExpiredByTime = existingTxn.expired_at && new Date(existingTxn.expired_at) < new Date()
+      if (!isExpiredByTime) {
+        // Return the existing transaction instead of creating a new one
+        return c.json({
+          transaction_uuid: existingTxn.transaction_uuid,
+          ref_id: existingTxn.ref_id,
+          trx_reference: existingTxn.trx_reference,
+          payment_name: existingTxn.payment_name,
+          payment_method: existingTxn.payment_method,
+          payment_image: existingTxn.payment_image,
+          nominal: existingTxn.nominal,
+          expired: existingTxn.expired_at,
+          nomor_va: existingTxn.nomor_va,
+          nomor_pembayaran: existingTxn.nomor_pembayaran,
+          qr_image: existingTxn.qr_image,
+          qr_string: existingTxn.qr_string,
+          tutorial: existingTxn.tutorial,
+          total_bayar: existingTxn.total_bayar,
+          _existing: true,
+        })
+      }
+    }
   }
 
   // Verify channel is enabled
@@ -399,6 +428,46 @@ payment.get('/status/:refId', authMiddleware, async (c) => {
 })
 
 // ═══════════════════════════════════════════════════
+// GET TRANSACTION BY TICKET
+// ═══════════════════════════════════════════════════
+
+/**
+ * GET /payment/for-ticket/:ticketId
+ * Returns the most recent payment transaction for a ticket.
+ * Allows the frontend to restore state after a page refresh.
+ */
+payment.get('/for-ticket/:ticketId', authMiddleware, async (c) => {
+  const ticketId = c.req.param('ticketId')
+  const user = c.get('user') as JWTPayload
+
+  // Verify ownership
+  const ticket = await c.env.DB.prepare(
+    `SELECT ticket_uuid, user_uuid, purchase_status FROM tickets WHERE ticket_uuid = ?`
+  ).bind(ticketId).first() as any
+
+  if (!ticket) return c.json({ transaction: null })
+  if (ticket.user_uuid !== user.sub) return c.json({ message: 'Unauthorized' }, 403)
+
+  // Get the most recent transaction for this ticket
+  const txn = await c.env.DB.prepare(
+    `SELECT * FROM payment_transactions WHERE ticket_uuid = ? ORDER BY created_at DESC LIMIT 1`
+  ).bind(ticketId).first() as PaymentTransactionRow | null
+
+  if (!txn) return c.json({ transaction: null })
+
+  // If pending, check if it has expired by time (no WijayaPay call — just time-based)
+  if (txn.status === 'pending' && txn.expired_at && new Date(txn.expired_at) < new Date()) {
+    const now = new Date().toISOString()
+    await c.env.DB.prepare(
+      `UPDATE payment_transactions SET status = 'expired', updated_at = ? WHERE transaction_uuid = ?`
+    ).bind(now, txn.transaction_uuid).run()
+    return c.json({ transaction: { ...txn, status: 'expired' } })
+  }
+
+  return c.json({ transaction: txn })
+})
+
+// ═══════════════════════════════════════════════════
 // CALLBACK / WEBHOOK
 // ═══════════════════════════════════════════════════
 
@@ -436,7 +505,8 @@ payment.post('/callback', async (c) => {
   }
 
   const now = new Date().toISOString()
-  const status = body.status || 'pending'
+  // WijayaPay sends status_pembayaran in callback body (same field as status-check API)
+  const status = body.status_pembayaran || body.status || 'pending'
 
   // Get the transaction
   const txn = await c.env.DB.prepare(

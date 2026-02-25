@@ -273,10 +273,23 @@
                   </div>
                 </div>
 
-                <!-- Polling status indicator -->
-                <div class="flex items-center justify-center gap-2 text-[#94a3b8] text-xs">
-                  <div class="w-3 h-3 border-2 border-[#0df2f2]/30 border-t-[#0df2f2] rounded-full animate-spin"></div>
-                  <span>Checking payment status automatically...</span>
+                <!-- Polling status indicator + manual check -->
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-2 text-[#94a3b8] text-xs">
+                    <div class="w-3 h-3 border-2 border-[#0df2f2]/30 border-t-[#0df2f2] rounded-full animate-spin"></div>
+                    <span>Checking automatically every 5s...</span>
+                  </div>
+                  <button @click="manualCheckStatus" :disabled="manualChecking"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border"
+                    :class="manualChecking
+                      ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                      : 'bg-[#0df2f2]/10 text-[#0df2f2] border-[#0df2f2]/30 hover:bg-[#0df2f2]/20'">
+                    <div v-if="manualChecking" class="w-3 h-3 border border-[#0df2f2]/30 border-t-[#0df2f2] rounded-full animate-spin"></div>
+                    <svg v-else class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {{ manualChecking ? 'Checking...' : 'Check Now' }}
+                  </button>
                 </div>
 
                 <!-- Error -->
@@ -423,6 +436,7 @@ const selectedChannel = ref(null)
 
 // Active payment transaction (after generating via WijayaPay)
 const activeTransaction = ref(null)
+const manualChecking = ref(false)
 let pollInterval = null
 
 const timerParts = computed(() => {
@@ -577,6 +591,33 @@ function startPolling(refId) {
   }, 5000)
 }
 
+// Manually trigger a payment status check
+async function manualCheckStatus() {
+  if (!activeTransaction.value?.ref_id || manualChecking.value) return
+  manualChecking.value = true
+  try {
+    const data = await ticketApi.checkPaymentStatus(activeTransaction.value.ref_id)
+    if (data.status === 'paid') {
+      if (pollInterval) clearInterval(pollInterval)
+      pollInterval = null
+      showSuccess.value = true
+      ticket.value.purchase_status = 'paid'
+      setTimeout(() => {
+        router.push(`/event/ticket/${route.params.ticketId}`)
+      }, 2500)
+    } else if (data.status === 'expired' || data.status === 'failed') {
+      if (pollInterval) clearInterval(pollInterval)
+      pollInterval = null
+      payError.value = 'Payment expired or failed. Please try again.'
+      activeTransaction.value = null
+    }
+  } catch {
+    // ignore — silently fail
+  } finally {
+    manualChecking.value = false
+  }
+}
+
 async function handleCancel() {
   if (!confirm('Are you sure you want to cancel? Your ticket will be released.')) return
 
@@ -607,6 +648,33 @@ onMounted(async () => {
     // Load available payment channels (only for paid tickets that need payment)
     if (data.purchase_status === 'under_payment' && data.price_total > 0) {
       await loadChannels()
+
+      // Restore state if there's already a pending transaction (survives page refresh)
+      try {
+        const existing = await ticketApi.getPaymentForTicket(route.params.ticketId)
+        if (existing.transaction && existing.transaction.status === 'pending') {
+          const t = existing.transaction
+          activeTransaction.value = {
+            transaction_uuid: t.transaction_uuid,
+            ref_id: t.ref_id,
+            trx_reference: t.trx_reference,
+            payment_name: t.payment_name,
+            payment_method: t.payment_method,
+            payment_image: t.payment_image,
+            nominal: t.nominal,
+            expired: t.expired_at,
+            nomor_va: t.nomor_va,
+            nomor_pembayaran: t.nomor_pembayaran,
+            qr_image: t.qr_image,
+            qr_string: t.qr_string,
+            tutorial: t.tutorial,
+            total_bayar: t.total_bayar,
+          }
+          startPolling(t.ref_id)
+        }
+      } catch {
+        // Non-fatal — user can still generate a new payment
+      }
     }
   } catch (err) {
     payError.value = err.message || 'Ticket not found'

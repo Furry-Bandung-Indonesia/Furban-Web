@@ -8,6 +8,10 @@
           <p class="text-slate-400 text-sm mt-1">Manage ticket holders and check-in status.</p>
         </div>
         <div class="flex items-center gap-3 text-sm">
+          <button @click="exportToExcel" :disabled="actionLoading" class="flex items-center gap-2 bg-[#0df2f2]/10 hover:bg-[#0df2f2]/20 text-[#0df2f2] px-4 py-2 rounded-lg border border-[#0df2f2]/30 transition-colors disabled:opacity-50">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            {{ actionLoading ? 'Exporting...' : 'Export Excel' }}
+          </button>
           <div class="flex items-center gap-4 bg-[#161e2c] px-4 py-2 rounded-lg border border-slate-800/50">
             <div class="flex items-center gap-2">
               <span class="text-slate-400">Total:</span>
@@ -114,6 +118,14 @@
               <div class="flex items-center justify-end gap-1">
                 <button v-if="isAdmin" @click.stop="openModeration(att)" class="p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100" :class="att.moderation_status === 'BAN' ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' : att.moderation_status === 'WATCH' ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' : 'text-slate-400 hover:text-red-400 hover:bg-slate-800'" title="Moderation">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h12v2H1v-2zm16.3-7.7L8.7 4.7l1.4-1.4 8.6 8.6-1.4 1.4zM5.1 11.5l-2.8 2.8c-.4.4-.4 1 0 1.4l2 2c.4.4 1 .4 1.4 0l2.8-2.8-3.4-3.4zm8.4-8.4L11.1.7c-.4-.4-1-.4-1.4 0l-2 2c-.4.4-.4 1 0 1.4l2.4 2.4 3.4-3.4z"/></svg>
+                </button>
+                <!-- Quick pay override for pending tickets -->
+                <button v-if="isAdmin && att.purchase_status === 'under_payment'" @click.stop="handleManualPay(att)"
+                  :disabled="actionLoading"
+                  class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 ring-1 ring-emerald-600/30 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-30"
+                  title="Mark as Paid (Override)">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+                  Pay
                 </button>
                 <button @click="openDetail(att)" class="p-1.5 rounded-lg text-slate-400 hover:text-[#0df2f2] hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -861,6 +873,58 @@ async function markFoodReceived(att, received) {
     } catch { /* keep existing */ }
   } catch (e) {
     alert(e.message || 'Failed to update food status')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function exportToExcel() {
+  actionLoading.value = true
+  try {
+    const params = { page: 1, limit: 10000 }
+    if (searchQuery.value) params.search = searchQuery.value
+    if (statusFilter.value) params.status = statusFilter.value
+    if (tierFilter.value) params.tier = tierFilter.value
+    if (redeemedOnly.value) params.redeemed = '1'
+
+    const res = await ticketApi.getAttendees(eventId.value, params)
+    const exportData = res.attendees || []
+
+    let csvContent = '\uFEFF' // BOM for Excel UTF-8
+    csvContent += 'Ticket Number,Nickname,First Name,Last Name,Food Selection,Choices/Variants\n'
+
+    exportData.forEach(att => {
+      const ticketNum = att.ticket_number || att.ticket_uuid?.slice(0, 8) || ''
+      const nickname = att.nickname || ''
+      const firstName = att.first_name || ''
+      const lastName = att.last_name || ''
+
+      const foodSelection = parseFoodSelection(att.food_selection)
+      const foodNames = foodSelection.map(f => typeof f === 'string' ? f : f.name).join('; ')
+      const foodChoices = foodSelection.map(f => f.choice || '').filter(Boolean).join('; ')
+
+      const row = [
+        `"${ticketNum}"`,
+        `"${nickname.replace(/"/g, '""')}"`,
+        `"${firstName.replace(/"/g, '""')}"`,
+        `"${lastName.replace(/"/g, '""')}"`,
+        `"${foodNames.replace(/"/g, '""')}"`,
+        `"${foodChoices.replace(/"/g, '""')}"`
+      ]
+      csvContent += row.join(',') + '\n'
+    })
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `Attendees_Export_${eventId.value}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (e) {
+    alert(e.message || 'Failed to export attendees')
   } finally {
     actionLoading.value = false
   }
