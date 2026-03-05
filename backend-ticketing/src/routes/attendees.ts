@@ -13,6 +13,15 @@ const attendees = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 attendees.use('*', authMiddleware)
 
+function isProfileComplete(profile: any): boolean {
+  const firstName = typeof profile?.first_name === 'string' ? profile.first_name.trim() : ''
+  const lastName = typeof profile?.last_name === 'string' ? profile.last_name.trim() : ''
+  const nickname = typeof profile?.nickname === 'string' ? profile.nickname.trim() : ''
+  const phoneNumber = typeof profile?.phone_number === 'string' ? profile.phone_number.trim() : ''
+  const dateOfBirth = typeof profile?.date_of_birth === 'string' ? profile.date_of_birth.trim() : ''
+  return Boolean(firstName && lastName && nickname && phoneNumber && dateOfBirth)
+}
+
 /**
  * GET /manage/:eventId/attendees
  * List all attendees (tickets) for an event.
@@ -86,6 +95,288 @@ attendees.get('/:eventId/attendees', eventPermission('eventId'), async (c) => {
   return c.json({
     attendees: results || [],
     pagination: { page, limit, total: total?.count || 0, total_pages: Math.ceil((total?.count || 0) / limit) },
+  })
+})
+
+/**
+ * GET /manage/:eventId/attendees/transfer/senders
+ * Search sender candidates (ticket holders) for transfer modal.
+ * Search supports ticket fields and account email/name from AUTH_DB.
+ */
+attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId'), async (c) => {
+  const eventId = c.req.param('eventId')
+  const q = (c.req.query('q') || '').trim()
+  const limit = Math.min(parseInt(c.req.query('limit') || '20', 10), 50)
+
+  const ticketParams: any[] = [eventId]
+  let senderUuids: string[] = []
+
+  if (q.length >= 2) {
+    const pattern = `%${q}%`
+    const userMatches = await c.env.AUTH_DB.prepare(`
+      SELECT uuid
+      FROM users
+      WHERE is_active = 1
+        AND (
+          email LIKE ? OR
+          nickname LIKE ? OR
+          legal_name LIKE ? OR
+          first_name LIKE ? OR
+          last_name LIKE ?
+        )
+      LIMIT 100
+    `).bind(pattern, pattern, pattern, pattern, pattern).all()
+
+    senderUuids = (userMatches.results || []).map((u: any) => u.uuid).filter(Boolean)
+
+    let where = `
+      t.event_uuid = ?
+      AND (
+        t.ticket_number LIKE ? OR
+        t.first_name LIKE ? OR
+        t.last_name LIKE ? OR
+        t.nickname LIKE ?`
+    ticketParams.push(pattern, pattern, pattern, pattern)
+
+    if (senderUuids.length > 0) {
+      where += ` OR t.user_uuid IN (${senderUuids.map(() => '?').join(', ')})`
+      ticketParams.push(...senderUuids)
+    }
+    where += `)`
+
+    const { results } = await c.env.DB.prepare(`
+      SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
+             t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total,
+             t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
+      FROM tickets t
+      JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
+      WHERE ${where}
+      ORDER BY t.created_at DESC
+      LIMIT ?
+    `).bind(...ticketParams, limit).all()
+
+    const candidates = (results || []) as any[]
+    const candidateUserIds = [...new Set(candidates.map(r => r.user_uuid).filter(Boolean))]
+
+    const profileMap: Record<string, any> = {}
+    if (candidateUserIds.length > 0) {
+      const placeholders = candidateUserIds.map(() => '?').join(', ')
+      const { results: profiles } = await c.env.AUTH_DB.prepare(`
+        SELECT uuid, email, legal_name, nickname, first_name, last_name,
+               date_of_birth, phone_number, profile_image_url, is_active
+        FROM users
+        WHERE uuid IN (${placeholders})
+      `).bind(...candidateUserIds).all()
+
+      for (const p of (profiles || []) as any[]) {
+        profileMap[p.uuid] = {
+          uuid: p.uuid,
+          email: p.email,
+          legal_name: p.legal_name,
+          nickname: p.nickname,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          date_of_birth: p.date_of_birth,
+          phone_number: p.phone_number,
+          profile_image_url: p.profile_image_url,
+          is_active: p.is_active === 1,
+          complete_profile: isProfileComplete(p),
+        }
+      }
+    }
+
+    return c.json({
+      senders: candidates.map((row: any) => ({
+        ...row,
+        sender_profile: profileMap[row.user_uuid] || null,
+      })),
+    })
+  }
+
+  const { results } = await c.env.DB.prepare(`
+    SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
+           t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total,
+           t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
+    FROM tickets t
+    JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
+    WHERE t.event_uuid = ?
+    ORDER BY t.created_at DESC
+    LIMIT ?
+  `).bind(eventId, limit).all()
+
+  const candidates = (results || []) as any[]
+  const candidateUserIds = [...new Set(candidates.map(r => r.user_uuid).filter(Boolean))]
+  const profileMap: Record<string, any> = {}
+
+  if (candidateUserIds.length > 0) {
+    const placeholders = candidateUserIds.map(() => '?').join(', ')
+    const { results: profiles } = await c.env.AUTH_DB.prepare(`
+      SELECT uuid, email, legal_name, nickname, first_name, last_name,
+             date_of_birth, phone_number, profile_image_url, is_active
+      FROM users
+      WHERE uuid IN (${placeholders})
+    `).bind(...candidateUserIds).all()
+
+    for (const p of (profiles || []) as any[]) {
+      profileMap[p.uuid] = {
+        uuid: p.uuid,
+        email: p.email,
+        legal_name: p.legal_name,
+        nickname: p.nickname,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        date_of_birth: p.date_of_birth,
+        phone_number: p.phone_number,
+        profile_image_url: p.profile_image_url,
+        is_active: p.is_active === 1,
+        complete_profile: isProfileComplete(p),
+      }
+    }
+  }
+
+  return c.json({
+    senders: candidates.map((row: any) => ({
+      ...row,
+      sender_profile: profileMap[row.user_uuid] || null,
+    })),
+  })
+})
+
+/**
+ * POST /manage/:eventId/attendees/:ticketId/transfer
+ * Transfer ticket ownership to another user with complete profile data.
+ */
+attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventId'), async (c) => {
+  const eventId = c.req.param('eventId')
+  const ticketId = c.req.param('ticketId')
+  const body = await c.req.json().catch(() => ({}))
+  const receiverUserUuid = (body.receiver_user_uuid || '').toString().trim()
+
+  if (!receiverUserUuid) {
+    return c.json({ message: 'receiver_user_uuid is required' }, 400)
+  }
+
+  const ticket = await c.env.DB.prepare(
+    `SELECT t.*, tt.tier_name, tt.price_total as tier_price
+     FROM tickets t
+     JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
+     WHERE t.ticket_uuid = ? AND t.event_uuid = ?`
+  ).bind(ticketId, eventId).first() as (TicketRow & { tier_name: string; tier_price: number }) | null
+
+  if (!ticket) return c.json({ message: 'Ticket not found' }, 404)
+
+  if (!['paid', 'under_payment', 'revoked'].includes(ticket.purchase_status)) {
+    return c.json({ message: `Ticket with status ${ticket.purchase_status} cannot be transferred` }, 400)
+  }
+
+  if (ticket.user_uuid === receiverUserUuid) {
+    return c.json({ message: 'Sender and receiver cannot be the same user' }, 400)
+  }
+
+  const senderProfile = await c.env.AUTH_DB.prepare(
+    `SELECT uuid, email, legal_name, nickname, first_name, last_name,
+            date_of_birth, phone_number, profile_image_url, is_active
+     FROM users WHERE uuid = ?`
+  ).bind(ticket.user_uuid).first() as any
+
+  const receiverProfile = await c.env.AUTH_DB.prepare(
+    `SELECT uuid, email, legal_name, nickname, first_name, last_name,
+            date_of_birth, phone_number, profile_image_url, is_active
+     FROM users WHERE uuid = ?`
+  ).bind(receiverUserUuid).first() as any
+
+  if (!receiverProfile) return c.json({ message: 'Receiver user not found' }, 404)
+  if (receiverProfile.is_active !== 1) return c.json({ message: 'Receiver user is not active' }, 400)
+
+  if (!isProfileComplete(receiverProfile)) {
+    return c.json({
+      message: 'Receiver profile is incomplete. Required: first_name, last_name, nickname, phone_number, date_of_birth.',
+      required_fields: ['first_name', 'last_name', 'nickname', 'phone_number', 'date_of_birth'],
+      receiver_profile: {
+        uuid: receiverProfile.uuid,
+        email: receiverProfile.email,
+        nickname: receiverProfile.nickname,
+        first_name: receiverProfile.first_name,
+        last_name: receiverProfile.last_name,
+        date_of_birth: receiverProfile.date_of_birth,
+        phone_number: receiverProfile.phone_number,
+        profile_image_url: receiverProfile.profile_image_url,
+      },
+    }, 400)
+  }
+
+  const receiverExisting = await c.env.DB.prepare(
+    `SELECT ticket_uuid, purchase_status
+     FROM tickets
+     WHERE event_uuid = ? AND user_uuid = ? AND ticket_uuid <> ?
+       AND purchase_status IN ('under_payment', 'paid', 'revoked')
+     LIMIT 1`
+  ).bind(eventId, receiverUserUuid, ticketId).first() as { ticket_uuid: string; purchase_status: string } | null
+
+  if (receiverExisting) {
+    return c.json({
+      message: 'Receiver already has an active ticket in this event',
+      existing_ticket_uuid: receiverExisting.ticket_uuid,
+      existing_ticket_status: receiverExisting.purchase_status,
+    }, 409)
+  }
+
+  const now = new Date().toISOString()
+
+  await c.env.DB.prepare(
+    `UPDATE tickets
+     SET user_uuid = ?, first_name = ?, last_name = ?, nickname = ?, date_of_birth = ?, phone_number = ?, updated_at = ?
+     WHERE ticket_uuid = ? AND event_uuid = ?`
+  ).bind(
+    receiverUserUuid,
+    receiverProfile.first_name,
+    receiverProfile.last_name,
+    receiverProfile.nickname,
+    receiverProfile.date_of_birth,
+    receiverProfile.phone_number,
+    now,
+    ticketId,
+    eventId,
+  ).run()
+
+  await c.env.DB.prepare(
+    `UPDATE purchase_log SET user_uuid = ?, updated_at = ? WHERE ticket_uuid = ?`
+  ).bind(receiverUserUuid, now, ticketId).run()
+
+  return c.json({
+    message: 'Ticket transferred successfully',
+    transfer: {
+      ticket_uuid: ticket.ticket_uuid,
+      ticket_number: ticket.ticket_number,
+      tier_uuid: ticket.tier_uuid,
+      tier_name: ticket.tier_name,
+      food_selection: ticket.food_selection,
+      food_total: ticket.food_total,
+      price_total: (ticket.tier_price || 0) + (ticket.food_total || 0),
+      transferred_at: now,
+      sender: senderProfile ? {
+        uuid: senderProfile.uuid,
+        email: senderProfile.email,
+        nickname: senderProfile.nickname,
+        first_name: senderProfile.first_name,
+        last_name: senderProfile.last_name,
+        date_of_birth: senderProfile.date_of_birth,
+        phone_number: senderProfile.phone_number,
+        profile_image_url: senderProfile.profile_image_url,
+        complete_profile: isProfileComplete(senderProfile),
+      } : null,
+      receiver: {
+        uuid: receiverProfile.uuid,
+        email: receiverProfile.email,
+        nickname: receiverProfile.nickname,
+        first_name: receiverProfile.first_name,
+        last_name: receiverProfile.last_name,
+        date_of_birth: receiverProfile.date_of_birth,
+        phone_number: receiverProfile.phone_number,
+        profile_image_url: receiverProfile.profile_image_url,
+        complete_profile: true,
+      },
+    },
   })
 })
 

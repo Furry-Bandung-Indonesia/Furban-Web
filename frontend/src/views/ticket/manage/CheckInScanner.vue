@@ -600,8 +600,10 @@ async function startScanner() {
       {
         fps: 30,
         qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const size = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.85)
-          return { width: size, height: size }
+          return {
+            width: Math.floor(viewfinderWidth * 0.98),
+            height: Math.floor(viewfinderHeight * 0.98)
+          }
         },
         aspectRatio: 16 / 9,
         disableFlip: false,
@@ -865,9 +867,20 @@ onBeforeUnmount(async () => {
 }
 :deep(#qr-reader video) {
   border-radius: 0.75rem;
+  object-fit: cover;
+  width: 100% !important;
+  height: 100% !important;
 }
 :deep(#qr-reader__scan_region) {
   min-height: auto !important;
+}
+/* Hide the shaded region overlay so the full camera view is visible */
+:deep(#qr-shaded-region) {
+  display: none !important;
+}
+/* Remove border on the scanning box */
+:deep(#qr-reader__scan_region > img) {
+  display: none !important;
 }
 :deep(#qr-reader__dashboard) {
   display: none !important;

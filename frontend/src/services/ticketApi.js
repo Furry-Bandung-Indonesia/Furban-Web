@@ -243,6 +243,23 @@ class TicketApiService {
     })
   }
 
+  /** Search sender candidates (ticket holders) for ticket transfer */
+  async searchTransferSenders(eventId, params = {}) {
+    const query = new URLSearchParams()
+    if (params.q) query.set('q', params.q)
+    if (params.limit) query.set('limit', params.limit.toString())
+    const qs = query.toString()
+    return this.request(`/api/manage/${eventId}/attendees/transfer/senders${qs ? '?' + qs : ''}`)
+  }
+
+  /** Transfer a ticket to another user */
+  async transferTicket(eventId, ticketId, receiverUserUuid) {
+    return this.request(`/api/manage/${eventId}/attendees/${ticketId}/transfer`, {
+      method: 'POST',
+      body: JSON.stringify({ receiver_user_uuid: receiverUserUuid }),
+    })
+  }
+
   /** Manual override: mark under_payment ticket as paid */
   async manualPayTicket(eventId, ticketId) {
     return this.request(`/api/manage/${eventId}/attendees/${ticketId}/manual-pay`, {

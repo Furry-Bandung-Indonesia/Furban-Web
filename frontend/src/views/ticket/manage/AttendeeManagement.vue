@@ -127,6 +127,11 @@
                   <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
                   Pay
                 </button>
+                <button @click.stop="openTransferModal(att)"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  title="Transfer Ticket">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                </button>
                 <button @click="openDetail(att)" class="p-1.5 rounded-lg text-slate-400 hover:text-[#0df2f2] hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                 </button>
@@ -355,6 +360,12 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
             {{ actionLoading ? 'Processing...' : 'Mark as Paid (Override)' }}
           </button>
+          <button v-if="selectedAttendee.purchase_status === 'paid' || selectedAttendee.purchase_status === 'under_payment' || selectedAttendee.purchase_status === 'revoked'"
+            @click="openTransferModal(selectedAttendee)" :disabled="actionLoading"
+            class="w-full px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+            {{ actionLoading ? 'Processing...' : 'Transfer Ticket' }}
+          </button>
           <div class="flex gap-3">
             <button v-if="selectedAttendee.purchase_status === 'paid' && !selectedAttendee.is_redeemed"
               @click="forceCheckin(selectedAttendee)" :disabled="actionLoading"
@@ -378,6 +389,137 @@
             </button>
             <button @click="selectedAttendee = null" class="px-4 py-2.5 rounded-lg border border-slate-700 text-white text-sm hover:bg-slate-800">Close</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Transfer Modal -->
+    <div v-if="showTransferModal" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" @click.self="closeTransferModal">
+      <div class="w-full max-w-5xl bg-[#1e2430] rounded-xl border border-slate-700 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div class="px-6 py-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+          <div>
+            <h3 class="text-lg font-bold text-white">Transfer Ticket</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Sender and receiver profiles are shown before transfer. Receiver profile must be complete.</p>
+          </div>
+          <button @click="closeTransferModal" class="text-slate-400 hover:text-white">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div class="overflow-y-auto p-6 space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Sender Email (Ticket Holder)</p>
+              <input v-model="transferSenderQuery" @input="onTransferSenderInput"
+                class="w-full rounded-lg bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 p-2.5 focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent"
+                placeholder="Search sender by email, name, or ticket..." />
+              <div class="max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 divide-y divide-slate-800">
+                <button v-for="s in transferSenderResults" :key="s.ticket_uuid" @click="selectTransferSender(s)"
+                  class="w-full text-left px-3 py-2.5 hover:bg-slate-800/80 transition-colors">
+                  <p class="text-sm text-white">{{ s.sender_profile?.email || 'No email' }}</p>
+                  <p class="text-xs text-slate-400">{{ [s.first_name, s.last_name].filter(Boolean).join(' ') || s.nickname || 'Unknown' }} · {{ s.ticket_number || s.ticket_uuid?.slice(0, 8) }}</p>
+                </button>
+                <p v-if="!transferSenderResults.length" class="px-3 py-3 text-xs text-slate-500">No sender candidates</p>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Receiver Email</p>
+              <input v-model="transferReceiverQuery" @input="onTransferReceiverInput"
+                class="w-full rounded-lg bg-slate-900 border border-slate-700 text-sm text-white placeholder:text-slate-500 p-2.5 focus:ring-2 focus:ring-indigo-500/50 focus:border-transparent"
+                placeholder="Search receiver by email or name..." />
+              <div class="max-h-44 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900 divide-y divide-slate-800">
+                <button v-for="u in transferReceiverResults" :key="u.uuid" @click="selectTransferReceiver(u)"
+                  class="w-full text-left px-3 py-2.5 hover:bg-slate-800/80 transition-colors">
+                  <p class="text-sm text-white">{{ u.email || 'No email' }}</p>
+                  <p class="text-xs text-slate-400">{{ [u.first_name, u.last_name].filter(Boolean).join(' ') || u.nickname || 'Unknown' }}</p>
+                </button>
+                <p v-if="!transferReceiverResults.length" class="px-3 py-3 text-xs text-slate-500">No receiver results</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+              <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Sender Profile</p>
+              <div v-if="transferSelectedSender" class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center">
+                    <img v-if="transferSenderProfile?.profile_image_url" :src="getAuthImageUrl(transferSenderProfile.profile_image_url)" class="w-full h-full object-cover" />
+                    <span v-else class="text-sm font-bold text-slate-400">{{ getInitials(transferSelectedSender) }}</span>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-white">{{ [transferSelectedSender.first_name, transferSelectedSender.last_name].filter(Boolean).join(' ') || transferSelectedSender.nickname || 'Unknown' }}</p>
+                    <p class="text-xs text-slate-400">{{ transferSenderProfile?.email || transferSelectedSender.sender_profile?.email || 'No email' }}</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">First Name</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.first_name || transferSelectedSender.first_name || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Last Name</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.last_name || transferSelectedSender.last_name || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Nickname</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.nickname || transferSelectedSender.nickname || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Phone</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.phone_number || transferSelectedSender.phone_number || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2 col-span-2"><p class="text-slate-500">Date of Birth</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.date_of_birth || transferSelectedSender.date_of_birth || '—' }}</p></div>
+                </div>
+              </div>
+              <p v-else class="text-xs text-slate-500">Select sender first.</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-3">
+              <p class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Receiver Profile</p>
+              <div v-if="transferSelectedReceiver" class="space-y-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center">
+                    <img v-if="transferReceiverProfile?.profile_image_url" :src="getAuthImageUrl(transferReceiverProfile.profile_image_url)" class="w-full h-full object-cover" />
+                    <span v-else class="text-sm font-bold text-slate-400">{{ getInitials(transferSelectedReceiver) }}</span>
+                  </div>
+                  <div>
+                    <p class="text-sm font-semibold text-white">{{ [transferReceiverProfile?.first_name, transferReceiverProfile?.last_name].filter(Boolean).join(' ') || transferReceiverProfile?.nickname || transferSelectedReceiver.nickname || 'Unknown' }}</p>
+                    <p class="text-xs text-slate-400">{{ transferReceiverProfile?.email || transferSelectedReceiver.email || 'No email' }}</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">First Name</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.first_name || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Last Name</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.last_name || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Nickname</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.nickname || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Phone</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.phone_number || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2 col-span-2"><p class="text-slate-500">Date of Birth</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.date_of_birth || '—' }}</p></div>
+                </div>
+                <p class="text-xs font-medium" :class="isReceiverProfileComplete ? 'text-green-400' : 'text-red-400'">
+                  {{ isReceiverProfileComplete ? 'Profile complete' : 'Profile incomplete: first name, last name, nickname, phone number, and date of birth are required' }}
+                </p>
+              </div>
+              <p v-else class="text-xs text-slate-500">Select receiver first.</p>
+            </div>
+          </div>
+
+          <div v-if="transferSelectedSender" class="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+            <p class="text-xs uppercase tracking-wider text-indigo-300 font-semibold mb-2">Transfer Payload (Sender → Receiver)</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div><span class="text-slate-400">Tier UUID:</span> <span class="text-white font-mono">{{ transferSelectedSender.tier_uuid }}</span></div>
+              <div><span class="text-slate-400">Tier Name:</span> <span class="text-white">{{ transferSelectedSender.tier_name || 'N/A' }}</span></div>
+            </div>
+            <div class="mt-2">
+              <p class="text-xs text-slate-400 mb-1">Food Selection & Variants</p>
+              <div class="flex flex-wrap gap-1">
+                <span v-for="food in parseFoodSelection(transferSelectedSender.food_selection)" :key="food.name || food"
+                  class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+                  {{ typeof food === 'string' ? food : food.name }}{{ food.choice ? ` · ${food.choice}` : '' }}
+                </span>
+                <span v-if="!parseFoodSelection(transferSelectedSender.food_selection).length" class="text-xs text-slate-500">—</span>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="transferError" class="text-sm text-red-400">{{ transferError }}</p>
+        </div>
+
+        <div class="px-6 py-4 border-t border-slate-700 flex items-center justify-end gap-3 shrink-0">
+          <button @click="closeTransferModal" class="px-4 py-2.5 rounded-lg border border-slate-700 text-white text-sm hover:bg-slate-800">Cancel</button>
+          <button @click="submitTransfer" :disabled="transferSubmitting || !canSubmitTransfer"
+            class="px-4 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            <svg v-if="transferSubmitting" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            {{ transferSubmitting ? 'Transferring...' : 'Transfer Ticket' }}
+          </button>
         </div>
       </div>
     </div>
@@ -559,10 +701,24 @@ const modFormNotes = ref('')
 const modFormSubmitting = ref(false)
 const showRevokeModal = ref(false)
 const revokeReason = ref('')
+const showTransferModal = ref(false)
+const transferLoading = ref(false)
+const transferSubmitting = ref(false)
+const transferError = ref('')
+const transferSenderQuery = ref('')
+const transferReceiverQuery = ref('')
+const transferSenderResults = ref([])
+const transferReceiverResults = ref([])
+const transferSelectedSender = ref(null)
+const transferSelectedReceiver = ref(null)
+const transferSenderProfile = ref(null)
+const transferReceiverProfile = ref(null)
 
 const pagination = ref({ page: 1, limit: 50, total: 0, total_pages: 0 })
 
 let debounceTimer = null
+let transferSenderDebounce = null
+let transferReceiverDebounce = null
 function debouncedLoad() {
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => loadAttendees(1), 300)
@@ -576,6 +732,26 @@ const visiblePages = computed(() => {
   const end = Math.min(total, current + 2)
   for (let i = start; i <= end; i++) pages.push(i)
   return pages
+})
+
+function isProfileComplete(profile) {
+  if (!profile) return false
+  const required = ['first_name', 'last_name', 'nickname', 'phone_number', 'date_of_birth']
+  return required.every((key) => {
+    const val = profile[key]
+    return typeof val === 'string' ? val.trim().length > 0 : Boolean(val)
+  })
+}
+
+const isReceiverProfileComplete = computed(() => isProfileComplete(transferReceiverProfile.value))
+
+const canSubmitTransfer = computed(() => {
+  return Boolean(
+    transferSelectedSender.value?.ticket_uuid &&
+    transferSelectedReceiver.value?.uuid &&
+    isReceiverProfileComplete.value &&
+    transferSelectedSender.value?.user_uuid !== transferSelectedReceiver.value?.uuid
+  )
 })
 
 function parseFoodSelection(val) {
@@ -655,6 +831,142 @@ function getInitials(att) {
   const last = att.last_name?.[0] || ''
   if (first || last) return (first + last).toUpperCase()
   return att.nickname?.[0]?.toUpperCase() || '?'
+}
+
+async function openTransferModal(att) {
+  showTransferModal.value = true
+  transferError.value = ''
+  transferSenderResults.value = []
+  transferReceiverResults.value = []
+  transferReceiverQuery.value = ''
+  transferSelectedReceiver.value = null
+  transferReceiverProfile.value = null
+
+  if (att?.ticket_uuid) {
+    transferSelectedSender.value = { ...att }
+    transferSenderProfile.value = null
+    try {
+      const profileRes = await authApi.getUserProfile(att.user_uuid)
+      transferSenderProfile.value = profileRes.user || profileRes
+      transferSelectedSender.value.sender_profile = transferSenderProfile.value
+      transferSenderQuery.value = transferSenderProfile.value?.email || ''
+    } catch {
+      transferSenderQuery.value = ''
+    }
+  } else {
+    transferSelectedSender.value = null
+    transferSenderProfile.value = null
+    transferSenderQuery.value = ''
+  }
+
+  await searchTransferSenders()
+}
+
+function closeTransferModal() {
+  showTransferModal.value = false
+  transferSubmitting.value = false
+  transferLoading.value = false
+  transferError.value = ''
+  transferSenderQuery.value = ''
+  transferReceiverQuery.value = ''
+  transferSenderResults.value = []
+  transferReceiverResults.value = []
+  transferSelectedSender.value = null
+  transferSelectedReceiver.value = null
+  transferSenderProfile.value = null
+  transferReceiverProfile.value = null
+}
+
+function onTransferSenderInput() {
+  clearTimeout(transferSenderDebounce)
+  transferSenderDebounce = setTimeout(() => {
+    searchTransferSenders()
+  }, 300)
+}
+
+function onTransferReceiverInput() {
+  clearTimeout(transferReceiverDebounce)
+  transferReceiverDebounce = setTimeout(() => {
+    searchTransferReceivers()
+  }, 300)
+}
+
+async function searchTransferSenders() {
+  if (!showTransferModal.value) return
+  transferLoading.value = true
+  try {
+    const res = await ticketApi.searchTransferSenders(eventId.value, {
+      q: transferSenderQuery.value.trim() || undefined,
+      limit: 20,
+    })
+    transferSenderResults.value = res.senders || []
+  } catch (e) {
+    transferError.value = e.message || 'Failed to search sender'
+  } finally {
+    transferLoading.value = false
+  }
+}
+
+async function searchTransferReceivers() {
+  transferError.value = ''
+  const q = transferReceiverQuery.value.trim()
+  if (q.length < 2) {
+    transferReceiverResults.value = []
+    return
+  }
+  try {
+    const res = await authApi.searchUsers(q)
+    transferReceiverResults.value = (res.users || []).filter(u => !transferSelectedSender.value || u.uuid !== transferSelectedSender.value.user_uuid)
+  } catch (e) {
+    transferError.value = e.message || 'Failed to search receiver'
+  }
+}
+
+async function selectTransferSender(sender) {
+  transferSelectedSender.value = sender
+  transferError.value = ''
+  transferSenderProfile.value = sender.sender_profile || null
+  if (!transferSenderProfile.value && sender.user_uuid) {
+    try {
+      const profileRes = await authApi.getUserProfile(sender.user_uuid)
+      transferSenderProfile.value = profileRes.user || profileRes
+      transferSelectedSender.value.sender_profile = transferSenderProfile.value
+    } catch {
+      transferSenderProfile.value = null
+    }
+  }
+}
+
+async function selectTransferReceiver(user) {
+  transferSelectedReceiver.value = user
+  transferError.value = ''
+  transferReceiverProfile.value = null
+  try {
+    const profileRes = await authApi.getUserProfile(user.uuid)
+    transferReceiverProfile.value = profileRes.user || profileRes
+  } catch (e) {
+    transferError.value = e.message || 'Failed to load receiver profile'
+  }
+}
+
+async function submitTransfer() {
+  if (!canSubmitTransfer.value || transferSubmitting.value) return
+  transferSubmitting.value = true
+  transferError.value = ''
+  try {
+    await ticketApi.transferTicket(
+      eventId.value,
+      transferSelectedSender.value.ticket_uuid,
+      transferSelectedReceiver.value.uuid
+    )
+    await loadAttendees(pagination.value.page)
+    selectedAttendee.value = null
+    closeTransferModal()
+  } catch (e) {
+    transferError.value = e.message || 'Failed to transfer ticket'
+  } finally {
+    transferSubmitting.value = false
+  }
 }
 
 async function loadAvatars() {
