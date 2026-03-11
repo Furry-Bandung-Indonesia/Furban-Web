@@ -1,7 +1,7 @@
 .wrangler
 node_modules
+.dev.vars
 scripts
 API-DOCUMENTATION.md
 schema.sql
 seed.sql
-wrangler.toml

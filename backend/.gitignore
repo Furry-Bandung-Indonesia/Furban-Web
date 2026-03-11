@@ -1,6 +1,6 @@
 .wrangler
-wrangler.toml
 node_modules
+.dev.vars
 scripts
 dummy_data.sql
 schema.sql

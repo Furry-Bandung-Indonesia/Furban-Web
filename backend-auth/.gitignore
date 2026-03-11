@@ -1,5 +1,5 @@
 .wrangler
-wrangler.toml
 node_modules
+.dev.vars
 scripts
 schema.sql

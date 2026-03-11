@@ -1,0 +1,47 @@
+name = "backend-ticketing"
+main = "src/index.ts"
+compatibility_date = "2024-12-04"
+
+# Custom domain route
+routes = [
+  { pattern = "ticket.furban.my.id", custom_domain = true }
+]
+
+# D1 Database for ticketing
+[[d1_databases]]
+binding = "DB"
+database_name = "furban-ticketing-db"
+database_id = "60794075-a3d2-4aa7-81f0-8c320445f809"
+
+# D1 Database for auth (read-only, for moderation user scanning)
+[[d1_databases]]
+binding = "AUTH_DB"
+database_name = "furban-auth-db"
+database_id = "61eddd31-9927-48ed-aaf0-d9a84d4d3162"
+
+# R2 Bucket (shared with other services)
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "furban-media"
+
+# KV Namespace for claims, locks, rate limiting, caching
+[[kv_namespaces]]
+binding = "KV"
+id = "5c6acb5b1dd4470294570dbdbb63bdd0"
+
+# Queue for email notifications
+# [[queues.producers]]
+# binding = "EMAIL_QUEUE"
+# queue = "ticketing-email-queue"
+
+# [[queues.consumers]]
+# queue = "ticketing-email-queue"
+# max_batch_size = 10
+# max_batch_timeout = 30
+
+[vars]
+TURNSTILE_BYPASS = "false"
+WIJAYAPAY_CALLBACK_WHITELIST = "72.61.141.189"
+
+# Secrets — set via `wrangler secret put` or GitHub Actions:
+# JWT_SECRET, TURNSTILE_SECRET, WIJAYAPAY_MERCHANT_CODE, WIJAYAPAY_API_KEY
