@@ -5,13 +5,40 @@ on:
     branches:
       - deployment
 
-  # Allow manual trigger
+  # Allow manual trigger — deploys all services
   workflow_dispatch:
 
 jobs:
+  # ─── Detect which services changed ───
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      backend-auth: ${{ steps.filter.outputs.backend-auth }}
+      backend-ticketing: ${{ steps.filter.outputs.backend-ticketing }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            backend-auth:
+              - 'backend-auth/**'
+            backend-ticketing:
+              - 'backend-ticketing/**'
+            frontend:
+              - 'frontend/**'
+
   # ─── Backend API Worker (api.furban.my.id) ───
   deploy-backend:
     name: Deploy Backend Worker
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +62,8 @@ jobs:
   # ─── Auth Worker (auth.furban.my.id) ───
   deploy-backend-auth:
     name: Deploy Auth Worker
+    needs: changes
+    if: needs.changes.outputs.backend-auth == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +87,8 @@ jobs:
   # ─── Ticketing Worker (ticket.furban.my.id) ───
   deploy-backend-ticketing:
     name: Deploy Ticketing Worker
+    needs: changes
+    if: needs.changes.outputs.backend-ticketing == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,6 +112,8 @@ jobs:
   # ─── Frontend (Cloudflare Pages — furban.my.id) ───
   deploy-frontend:
     name: Deploy Frontend (Pages)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
