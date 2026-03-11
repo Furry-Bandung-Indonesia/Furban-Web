@@ -1,0 +1,130 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches:
+      - deployment
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  # ─── Backend API Worker (api.furban.my.id) ───
+  deploy-backend:
+    name: Deploy Backend Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          command: deploy
+          secrets: |
+            JWT_SECRET
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+  # ─── Auth Worker (auth.furban.my.id) ───
+  deploy-backend-auth:
+    name: Deploy Auth Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: backend-auth
+        run: npm ci
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend-auth
+          command: deploy
+          secrets: |
+            JWT_SECRET
+            TURNSTILE_SECRET
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+  # ─── Ticketing Worker (ticket.furban.my.id) ───
+  deploy-backend-ticketing:
+    name: Deploy Ticketing Worker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: backend-ticketing
+        run: npm ci
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend-ticketing
+          command: deploy
+          secrets: |
+            JWT_SECRET
+            TURNSTILE_SECRET
+            WIJAYAPAY_MERCHANT_CODE
+            WIJAYAPAY_API_KEY
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          WIJAYAPAY_MERCHANT_CODE: ${{ secrets.WIJAYAPAY_MERCHANT_CODE }}
+          WIJAYAPAY_API_KEY: ${{ secrets.WIJAYAPAY_API_KEY }}
+
+  # ─── Frontend (Cloudflare Pages — furban.my.id) ───
+  deploy-frontend:
+    name: Deploy Frontend (Pages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=furban-web
+          workingDirectory: frontend
