@@ -31,10 +31,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend
           command: deploy
-          secrets: |
-            JWT_SECRET
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
   # ─── Auth Worker (auth.furban.my.id) ───
   deploy-backend-auth:
@@ -58,16 +54,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend-auth
           command: deploy
-          secrets: |
-            JWT_SECRET
-            TURNSTILE_SECRET
-            GOOGLE_CLIENT_ID
-            GOOGLE_CLIENT_SECRET
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
   # ─── Ticketing Worker (ticket.furban.my.id) ───
   deploy-backend-ticketing:
@@ -91,16 +77,6 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend-ticketing
           command: deploy
-          secrets: |
-            JWT_SECRET
-            TURNSTILE_SECRET
-            WIJAYAPAY_MERCHANT_CODE
-            WIJAYAPAY_API_KEY
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
-          WIJAYAPAY_MERCHANT_CODE: ${{ secrets.WIJAYAPAY_MERCHANT_CODE }}
-          WIJAYAPAY_API_KEY: ${{ secrets.WIJAYAPAY_API_KEY }}
 
   # ─── Frontend (Cloudflare Pages — furban.my.id) ───
   deploy-frontend:
