@@ -156,7 +156,6 @@ app.post('/', authMiddleware, roleGuard(['photographer', 'publisher', 'admin']),
       return c.json({ message: 'Invalid file' }, 400)
     }
 
-    const user = c.get('user')
     const id = crypto.randomUUID()
     const authorName = user.nickname || user.email || 'Unknown'
     // Only treat as file if it has name (File object)
