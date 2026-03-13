@@ -13,7 +13,7 @@ binding = "DB"
 database_name = "furban-auth-db"
 database_id = "61eddd31-9927-48ed-aaf0-d9a84d4d3162"
 
-# KV for sessions (optional - can add later)
+# KV -> on progress
 # [[kv_namespaces]]
 # binding = "SESSIONS"
 # id = "session-kv-id-placeholder"
@@ -28,6 +28,3 @@ JWT_EXPIRE_HOURS = "48"
 SESSION_EXPIRE_HOURS = "3"
 FRONTEND_URL = "https://furban.my.id"
 TURNSTILE_BYPASS = "false"
-
-# Secrets — set via `wrangler secret put` or GitHub Actions:
-# JWT_SECRET, TURNSTILE_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET

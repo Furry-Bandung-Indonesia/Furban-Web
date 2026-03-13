@@ -29,7 +29,7 @@ bucket_name = "furban-media"
 binding = "KV"
 id = "5c6acb5b1dd4470294570dbdbb63bdd0"
 
-# Queue for email notifications
+# Cloudflare Queue for email (on progress)
 # [[queues.producers]]
 # binding = "EMAIL_QUEUE"
 # queue = "ticketing-email-queue"
@@ -42,6 +42,3 @@ id = "5c6acb5b1dd4470294570dbdbb63bdd0"
 [vars]
 TURNSTILE_BYPASS = "false"
 WIJAYAPAY_CALLBACK_WHITELIST = "72.61.141.189"
-
-# Secrets — set via `wrangler secret put` or GitHub Actions:
-# JWT_SECRET, TURNSTILE_SECRET, WIJAYAPAY_MERCHANT_CODE, WIJAYAPAY_API_KEY

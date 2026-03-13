@@ -18,4 +18,3 @@ bucket_name = "furban-media"
 
 [vars]
 FRONTEND_URL = "https://furban.my.id"
-# JWT_SECRET — set via `wrangler secret put JWT_SECRET` or GitHub Actions
