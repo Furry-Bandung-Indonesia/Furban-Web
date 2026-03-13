@@ -10,6 +10,7 @@ type Bindings = {
   JWT_SECRET: string
   JWT_EXPIRE_HOURS: string
   BUCKET: R2Bucket
+  GOOGLE_CLIENT_ID: string
   TURNSTILE_BYPASS?: string
   TURNSTILE_SECRET?: string
 }

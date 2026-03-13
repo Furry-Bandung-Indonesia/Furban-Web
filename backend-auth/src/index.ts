@@ -10,6 +10,7 @@ type Bindings = {
   JWT_SECRET: string
   JWT_EXPIRE_HOURS: string
   SESSION_EXPIRE_HOURS: string
+  GOOGLE_CLIENT_ID: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()

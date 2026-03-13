@@ -76,6 +76,15 @@ jobs:
         working-directory: backend-auth
         run: npm ci
 
+      - name: Sync GOOGLE_CLIENT_ID to Cloudflare Worker secret
+        working-directory: backend-auth
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          echo "$GOOGLE_CLIENT_ID" | npx wrangler secret put GOOGLE_CLIENT_ID
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
