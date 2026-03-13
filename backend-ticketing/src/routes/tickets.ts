@@ -400,7 +400,11 @@ tickets.put('/tickets/:ticketId', async (c) => {
   const values: any[] = []
 
   if (body.first_name !== undefined && body.first_name?.trim()) {
-    updates.push('first_name = ?'); values.push(body.first_name.trim())
+    const firstName = body.first_name.trim()
+    if (firstName.toLowerCase() === 'attendee') {
+      return c.json({ message: 'Please update your first name. "Attendee" is not allowed.' }, 400)
+    }
+    updates.push('first_name = ?'); values.push(firstName)
   }
   if (body.last_name !== undefined) {
     updates.push('last_name = ?'); values.push(body.last_name?.trim() || null)

@@ -192,6 +192,9 @@
                         class="w-full h-12 pl-12 pr-4 rounded-lg bg-[#1e293b] text-white border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] transition-all"
                         placeholder="John" />
                     </div>
+                    <p v-if="firstNameNeedsChange" class="text-xs text-amber-400">
+                      Please replace the default first name "Attendee" with your real first name.
+                    </p>
                   </div>
                   <div class="flex flex-col gap-2">
                     <span class="text-white text-sm font-semibold tracking-wide">Last Name</span>
@@ -370,9 +373,9 @@
                 <!-- Submit -->
                 <div class="flex flex-col gap-3 pt-2">
                   <button type="submit"
-                    :disabled="submitting || !form.first_name || !form.nickname?.trim() || !form.date_of_birth || !form.phone_number?.trim() || foodMissing || !tosAgreed"
+                    :disabled="isSubmitDisabled"
                     class="group flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 gap-2 text-lg font-bold leading-normal transition-all"
-                    :class="submitting || !form.first_name || !form.nickname?.trim() || !form.date_of_birth || !form.phone_number?.trim() || foodMissing || !tosAgreed
+                    :class="isSubmitDisabled
                       ? 'bg-[#334155] text-[#94a3b8] cursor-not-allowed'
                       : 'bg-[#0df2f2] hover:bg-[#00dada] hover:scale-[1.01] active:scale-[0.99] text-[#020617] shadow-[0_0_20px_rgba(13,242,242,0.2)]'"
                   >
@@ -526,6 +529,14 @@ const foodAddOnTotal = computed(() => {
   }, 0)
 })
 
+const firstNameNeedsChange = computed(() => {
+  return (form.value.first_name || '').trim().toLowerCase() === 'attendee'
+})
+
+const isSubmitDisabled = computed(() => {
+  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || !tosAgreed.value || firstNameNeedsChange.value
+})
+
 // Timer
 const timerParts = computed(() => {
   const m = Math.floor(timeRemaining.value / 60)
@@ -567,7 +578,12 @@ function formatPrice(price) {
 }
 
 async function handleSubmit() {
-  if (!form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || !tosAgreed.value) return
+  if (isSubmitDisabled.value) {
+    if (firstNameNeedsChange.value) {
+      submitError.value = 'Please update your first name. "Attendee" is only a default placeholder.'
+    }
+    return
+  }
 
   submitting.value = true
   submitError.value = null
