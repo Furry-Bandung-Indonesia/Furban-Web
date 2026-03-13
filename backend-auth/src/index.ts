@@ -22,7 +22,7 @@ app.use('*', cors({
       'http://localhost:5173',
       'http://127.0.0.1:5000',
       'https://furban.my.id',
-      'https://bandung.furries.id',
+      'https://bandung.furs.id',
       'https://api.furban.my.id',
     ]
     if (!origin || allowed.includes(origin)) return origin

@@ -18,7 +18,12 @@ export async function verifyTurnstile(token: string, ip?: string, bypass?: boole
     return { success: true }
   }
 
-  const turnstileSecret = secret || '0x4AAAAAACYz8FByomdEPBm-0BvWqtY4vvE'
+  const turnstileSecret = secret
+
+  if (!turnstileSecret) {
+    console.error('Turnstile secret is missing')
+    return { success: false, errorCodes: ['missing-secret'] }
+  }
 
   try {
     const formData = new FormData()
