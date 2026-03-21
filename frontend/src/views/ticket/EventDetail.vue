@@ -379,15 +379,16 @@
         <div class="flex justify-center mb-3">
           <div ref="turnstileMobileRef"></div>
         </div>
-        <div class="flex flex-col gap-1 items-start">
-          <div class="text-[#94a3b8] text-xs">Selected: {{ selectedTierData?.tier_name }}</div>
-          <div class="text-xl font-bold text-white">
-            {{ displayTotal }}
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex flex-col gap-1 items-start">
+            <div class="text-[#94a3b8] text-xs">Selected: {{ selectedTierData?.tier_name }}</div>
+            <div class="text-xl font-bold text-white">
+              {{ displayTotal }}
+            </div>
           </div>
-        </div>
-        <button
-          @click="proceedToClaim"
-          :disabled="claimingTicket || !turnstileToken || (selectedTierData?.name_your_price && bidPrice < selectedTierData?.price_total)"
+          <button
+            @click="proceedToClaim"
+            :disabled="claimingTicket || !turnstileToken || (selectedTierData?.name_your_price && bidPrice < selectedTierData?.price_total)"
             class="font-bold py-3 px-6 rounded-lg flex-1 text-center shadow-lg transition-all"
             :class="claimingTicket
               ? 'bg-[#334155] text-[#94a3b8] cursor-not-allowed'
