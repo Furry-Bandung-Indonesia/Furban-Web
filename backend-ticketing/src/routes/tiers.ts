@@ -29,7 +29,7 @@ tiers.get('/:eventId/tiers', eventPermission('eventId'), async (c) => {
   } else {
     // Host sees everything except admin_fee_internal
     query = `SELECT tier_uuid, event_uuid, tier_name, tier_description,
-                    price_total, quota_total, quota_available, sort_order,
+                    price_total, quota_total, quota_available, sort_order, name_your_price,
                     created_at, updated_at
              FROM ticket_tiers WHERE event_uuid = ? ORDER BY sort_order ASC`
   }

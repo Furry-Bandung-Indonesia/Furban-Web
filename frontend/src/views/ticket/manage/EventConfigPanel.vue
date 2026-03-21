@@ -138,11 +138,17 @@
                 <tr v-for="tier in tiers" :key="tier.tier_uuid" class="hover:bg-white/[0.02] transition-colors">
                   <td class="px-6 py-4">
                     <div>
-                      <p class="text-sm font-medium text-white">{{ tier.tier_name }}</p>
+                      <div class="flex items-center gap-2">
+                        <p class="text-sm font-medium text-white">{{ tier.tier_name }}</p>
+                        <span v-if="tier.name_your_price" class="px-1.5 py-0.5 rounded bg-[#0df2f2]/10 text-[#0df2f2] text-[10px] font-bold uppercase tracking-wider border border-[#0df2f2]/20">NYP</span>
+                      </div>
                       <p v-if="tier.tier_description" class="text-xs text-slate-400 mt-0.5 truncate max-w-[200px]">{{ tier.tier_description }}</p>
                     </div>
                   </td>
-                  <td class="px-6 py-4 text-sm text-white font-mono">{{ formatCurrency(tier.price_total) }}</td>
+                  <td class="px-6 py-4 text-sm text-white font-mono">
+                    {{ formatCurrency(tier.price_total) }}
+                    <span v-if="tier.name_your_price" class="text-[10px] text-slate-400 block">+ custom</span>
+                  </td>
                   <td class="px-6 py-4 text-sm text-slate-400 font-mono">{{ formatCurrency(tier.admin_fee_internal || 0) }}</td>
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-3">

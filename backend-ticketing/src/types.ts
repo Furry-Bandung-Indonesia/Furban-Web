@@ -66,6 +66,7 @@ export interface TierRow {
   quota_total: number
   quota_available: number
   sort_order: number
+  name_your_price: number
   created_at: string
   updated_at: string
 }
