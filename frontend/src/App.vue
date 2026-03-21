@@ -1,6 +1,6 @@
 <template>
   <div id="app" :class="{ 'dark': isDarkMode }">
-    <!-- Only show navbar on public routes -->
+    <!-- Only show navbar on public routesa -->
     <Navbar v-if="!shouldHideNavbar" />
     <main :class="shouldHideNavbar ? '' : 'min-h-screen bg-gray-50 dark:bg-gray-900'">
       <RouterView />
@@ -50,3 +50,4 @@ export default {
   }
 }
 </script>
+
