@@ -114,7 +114,7 @@ events.get('/:eventId', async (c) => {
   // Get tiers (hide admin_fee_internal from public)
   const { results: tiers } = await c.env.DB.prepare(
     `SELECT tier_uuid, event_uuid, tier_name, tier_description,
-            price_total, quota_total, quota_available, sort_order
+            price_total, quota_total, quota_available, sort_order, name_your_price
      FROM ticket_tiers WHERE event_uuid = ? ORDER BY sort_order ASC`
   ).bind(eventId).all()
 

@@ -148,7 +148,10 @@
                   <span class="text-[#94a3b8] text-sm">Ticket Type</span>
                   <div class="flex flex-col items-end">
                     <span class="text-white font-medium text-sm">{{ ticket.tier_name }}</span>
-                    <span class="text-[#0df2f2] text-xs font-bold">
+                    <span v-if="ticket.bid_price" class="text-[#0df2f2] text-xs font-bold">
+                      Your Bid: {{ formatPrice(ticket.bid_price) }}
+                    </span>
+                    <span v-else class="text-[#0df2f2] text-xs font-bold">
                       {{ formatPrice(ticket.price_total) }}
                     </span>
                   </div>
@@ -157,9 +160,9 @@
                   <span class="text-[#94a3b8] text-sm">Meal Add-on</span>
                   <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(foodAddOnTotal) }}</span>
                 </div>
-                <div v-if="foodAddOnTotal > 0" class="flex justify-between items-center border-t border-[#334155] pt-3">
+                <div v-if="foodAddOnTotal > 0 || ticket.bid_price" class="flex justify-between items-center border-t border-[#334155] pt-3">
                   <span class="text-white text-sm font-bold">Total</span>
-                  <span class="text-[#0df2f2] text-sm font-bold">{{ formatPrice((ticket.price_total || 0) + foodAddOnTotal) }}</span>
+                  <span class="text-[#0df2f2] text-sm font-bold">{{ formatPrice(computedTotal) }}</span>
                 </div>
               </div>
             </div>
@@ -170,9 +173,65 @@
             </div>
           </div>
 
-          <!-- ═══ Right Column — Personal Info Form ═══ -->
+          <!-- ═══ Right Column — Form ═══ -->
           <div class="lg:col-span-7">
             <div class="flex flex-col gap-8 rounded-xl border border-[#334155] bg-[#0f172a] p-6 sm:p-8 shadow-2xl">
+
+              <!-- Name Your Price Section (shown first for NYP tiers) -->
+              <div v-if="ticket.name_your_price" class="flex flex-col gap-4">
+                <div class="flex flex-col gap-1">
+                  <h2 class="text-white text-2xl font-black leading-tight tracking-tight flex items-center gap-2">
+                    <svg class="w-6 h-6 text-[#0df2f2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Name Your Price
+                  </h2>
+                  <p class="text-sm text-[#94a3b8]">Set your own ticket price — pay more to support the event!</p>
+                </div>
+
+                <!-- Base price display -->
+                <div class="flex items-center justify-between bg-[#111827] rounded-lg px-4 py-3 border border-[#1f2937]">
+                  <span class="text-sm text-[#94a3b8]">Base Price (minimum)</span>
+                  <span class="text-sm text-white font-bold tabular-nums">{{ formatPrice(ticket.tier_price || ticket.price_total) }}</span>
+                </div>
+
+                <!-- Bid price input -->
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] text-sm font-medium">IDR</span>
+                  <input
+                    v-model.number="bidPrice"
+                    type="number"
+                    :min="ticket.tier_price || ticket.price_total || 0"
+                    step="1000"
+                    class="w-full h-14 pl-14 pr-4 rounded-lg bg-[#1e293b] text-white text-xl font-black border-2 border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] transition-all tabular-nums"
+                    :placeholder="((ticket.tier_price || ticket.price_total || 0)).toLocaleString('id-ID')"
+                  />
+                </div>
+
+                <!-- Quick-add buttons -->
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" @click="addToBid(0)" class="px-4 py-2 rounded-lg text-sm font-bold transition-all" :class="bidPrice === (ticket.tier_price || ticket.price_total) ? 'bg-[#0df2f2] text-[#0a0e17]' : 'bg-[#1e293b] text-[#94a3b8] hover:bg-[#334155] hover:text-white border border-[#334155]'">
+                    Base Price
+                  </button>
+                  <button type="button" @click="addToBid(10000)" class="px-4 py-2 rounded-lg text-sm font-bold transition-all bg-[#1e293b] text-[#94a3b8] hover:bg-[#0df2f2]/20 hover:text-[#0df2f2] border border-[#334155]">
+                    +10.000
+                  </button>
+                  <button type="button" @click="addToBid(20000)" class="px-4 py-2 rounded-lg text-sm font-bold transition-all bg-[#1e293b] text-[#94a3b8] hover:bg-[#0df2f2]/20 hover:text-[#0df2f2] border border-[#334155]">
+                    +20.000
+                  </button>
+                  <button type="button" @click="addToBid(50000)" class="px-4 py-2 rounded-lg text-sm font-bold transition-all bg-[#1e293b] text-[#94a3b8] hover:bg-[#0df2f2]/20 hover:text-[#0df2f2] border border-[#334155]">
+                    +50.000
+                  </button>
+                </div>
+
+                <!-- Validation message -->
+                <p v-if="bidPrice && bidPrice < (ticket.tier_price || ticket.price_total || 0)" class="text-xs text-red-400">
+                  Minimum price is {{ formatPrice(ticket.tier_price || ticket.price_total) }}
+                </p>
+
+                <div class="border-b border-[#334155]"></div>
+              </div>
+
               <div class="flex flex-col gap-2">
                 <h1 class="text-white text-3xl font-black leading-tight tracking-tight">Fill Your Personal Information</h1>
               </div>
@@ -436,7 +495,13 @@ const submitError = ref(null)
 const showTos = ref(false)
 const tosAgreed = ref(false)
 const timeRemaining = ref(600)
+const bidPrice = ref(null)
 let timerInterval = null
+
+function addToBid(extra) {
+  const base = ticket.value?.tier_price || ticket.value?.price_total || 0
+  bidPrice.value = base + extra
+}
 
 const form = ref({
   first_name: '',
@@ -529,6 +594,17 @@ const foodAddOnTotal = computed(() => {
   }, 0)
 })
 
+// Name Your Price: total = max(bid_price, tier_price + food_total)
+const computedTotal = computed(() => {
+  const tierPrice = ticket.value?.tier_price || ticket.value?.price_total || 0
+  const food = foodAddOnTotal.value
+  const bid = ticket.value?.bid_price
+  if (bid) {
+    return Math.max(bid, tierPrice + food)
+  }
+  return tierPrice + food
+})
+
 const firstNameNeedsChange = computed(() => {
   return (form.value.first_name || '').trim().toLowerCase() === 'attendee'
 })
@@ -605,6 +681,10 @@ async function handleSubmit() {
     if (form.value.food_notes?.trim()) {
       body.food_notes = form.value.food_notes.trim()
     }
+    // Include bid_price for Name Your Price tiers
+    if (ticket.value?.name_your_price && bidPrice.value) {
+      body.bid_price = bidPrice.value
+    }
 
     await ticketApi.updateMyTicket(route.params.ticketId, body)
 
@@ -649,6 +729,11 @@ onMounted(async () => {
     form.value.date_of_birth = ticketData.date_of_birth || u.date_of_birth || ''
     form.value.phone_number = ticketData.phone_number || u.phone_number || ''
     form.value.is_fursuiter = !!ticketData.is_fursuiter
+
+    // Initialize bid price for Name Your Price tiers
+    if (ticketData.name_your_price) {
+      bidPrice.value = ticketData.bid_price || (ticketData.tier_price || ticketData.price_total)
+    }
 
     // Parse existing food selection (supports both legacy ["name"] and new [{name,choice}] formats)
     if (ticketData.food_selection) {

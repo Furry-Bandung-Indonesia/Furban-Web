@@ -407,6 +407,17 @@
               <input v-model.number="tierForm.sort_order" type="number" min="0" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" />
             </div>
           </div>
+          <!-- Name Your Price Toggle -->
+          <div class="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900/50 p-4">
+            <div class="flex flex-col gap-1">
+              <span class="text-sm font-medium text-white">Name Your Price</span>
+              <span class="text-xs text-slate-400">Allow attendees to set their own price (minimum = base price)</span>
+            </div>
+            <label class="flex items-center cursor-pointer relative">
+              <input type="checkbox" v-model="tierForm.name_your_price" class="sr-only peer" />
+              <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#0df2f2]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0df2f2]"></div>
+            </label>
+          </div>
           <div v-if="tierError" class="text-red-400 text-sm">{{ tierError }}</div>
           <div class="flex justify-end gap-3 pt-2">
             <button type="button" @click="showTierModal = false" class="px-4 py-2 rounded-lg border border-slate-700 text-white text-sm hover:bg-slate-800">Cancel</button>
@@ -509,6 +520,7 @@ const tierForm = reactive({
   admin_fee_internal: 0,
   quota_total: 1,
   sort_order: 0,
+  name_your_price: false,
 })
 
 // ═══ Delete ═══
@@ -674,9 +686,10 @@ function openTierModal(tier = null) {
       admin_fee_internal: tier.admin_fee_internal || 0,
       quota_total: tier.quota_total,
       sort_order: tier.sort_order || 0,
+      name_your_price: !!tier.name_your_price,
     })
   } else {
-    Object.assign(tierForm, { tier_name: '', tier_description: '', base_price: 0, admin_fee_internal: 0, quota_total: 1, sort_order: tiers.value.length })
+    Object.assign(tierForm, { tier_name: '', tier_description: '', base_price: 0, admin_fee_internal: 0, quota_total: 1, sort_order: tiers.value.length, name_your_price: false })
   }
   showTierModal.value = true
 }
@@ -692,6 +705,7 @@ async function saveTier() {
       admin_fee_internal: tierForm.admin_fee_internal || 0,
       quota_total: tierForm.quota_total,
       sort_order: tierForm.sort_order,
+      name_your_price: tierForm.name_your_price,
     }
     if (editingTier.value) {
       await ticketApi.updateTier(eventId.value, editingTier.value.tier_uuid, payload)

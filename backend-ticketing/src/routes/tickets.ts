@@ -314,21 +314,37 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     'UPDATE ticket_tiers SET quota_available = quota_available - 1, updated_at = ? WHERE tier_uuid = ?'
   ).bind(now, tier_uuid).run()
 
-  const totalAmount = tier.price_total + foodTotal
+  // ─── Name Your Price: validate and compute total ──
+  let bidPrice: number | null = null
+  let totalAmount = tier.price_total + foodTotal
+
+  if ((tier as any).name_your_price) {
+    if (body.bid_price) {
+      const rawBid = Number(body.bid_price)
+      if (isNaN(rawBid) || rawBid < tier.price_total) {
+        return c.json({ message: `bid_price must be at least ${tier.price_total}` }, 400)
+      }
+      bidPrice = rawBid
+      // Formula: final = max(bid_price, tier_price + food_total)
+      totalAmount = Math.max(bidPrice, tier.price_total + foodTotal)
+    }
+    // If no bid_price provided, it will be set on the fill page
+  }
 
   // Create ticket (ticket_number = NULL until payment)
   await c.env.DB.prepare(
     `INSERT INTO tickets
      (ticket_uuid, event_uuid, tier_uuid, user_uuid, ticket_number,
       first_name, last_name, nickname, date_of_birth, phone_number,
-      is_fursuiter, food_selection, food_total, food_notes,
+      is_fursuiter, food_selection, food_total, bid_price, food_notes,
       purchase_status, claim_expiry, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
+     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
   ).bind(
     ticketUuid, eventId, tier_uuid, user.sub,
     first_name, last_name || null, nickname || null,
     date_of_birth || null, phone_number || null,
     is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal,
+    bidPrice,
     food_notes?.trim() || null,
     claimExpiry, now, now,
   ).run()
@@ -359,6 +375,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
       tier_name: tier.tier_name,
       price_total: totalAmount,
       food_total: foodTotal,
+      bid_price: bidPrice,
       first_name,
       last_name,
       nickname,
@@ -373,7 +390,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
  * Update personal info on a ticket the user owns.
  * Only allowed while purchase_status = 'under_payment'.
  *
- * Body: { first_name?, last_name?, nickname?, date_of_birth?, phone_number?, is_fursuiter?, food_selection? }
+ * Body: { first_name?, last_name?, nickname?, date_of_birth?, phone_number?, is_fursuiter?, bid_price?, food_selection? }
  */
 tickets.put('/tickets/:ticketId', async (c) => {
   const user = c.get('user') as JWTPayload
@@ -420,6 +437,20 @@ tickets.put('/tickets/:ticketId', async (c) => {
   }
   if (body.is_fursuiter !== undefined) {
     updates.push('is_fursuiter = ?'); values.push(body.is_fursuiter ? 1 : 0)
+  }
+  // Name Your Price: accept bid_price update
+  if (body.bid_price !== undefined && body.bid_price !== null) {
+    const tier = await c.env.DB.prepare(
+      'SELECT price_total, name_your_price FROM ticket_tiers WHERE tier_uuid = ?'
+    ).bind(ticket.tier_uuid).first() as { price_total: number; name_your_price: number } | null
+    if (!tier?.name_your_price) {
+      return c.json({ message: 'Name Your Price is not enabled for this tier' }, 400)
+    }
+    const bidPrice = Number(body.bid_price)
+    if (isNaN(bidPrice) || bidPrice < tier.price_total) {
+      return c.json({ message: `Bid price must be at least ${tier.price_total}` }, 400)
+    }
+    updates.push('bid_price = ?'); values.push(bidPrice)
   }
   if (body.food_selection !== undefined) {
     // Validate food selection against event
@@ -469,17 +500,21 @@ tickets.put('/tickets/:ticketId', async (c) => {
     `UPDATE tickets SET ${updates.join(', ')} WHERE ticket_uuid = ? AND user_uuid = ?`
   ).bind(...values).run()
 
-  // If food changed, update purchase_log amount to reflect new total (tier price + food)
-  if (body.food_selection !== undefined) {
+  // If food or bid_price changed, update purchase_log amount to reflect new total
+  if (body.food_selection !== undefined || body.bid_price !== undefined) {
     const tier = await c.env.DB.prepare(
       'SELECT price_total FROM ticket_tiers WHERE tier_uuid = ?'
     ).bind(ticket.tier_uuid).first() as { price_total: number } | null
 
     const updatedTicket = await c.env.DB.prepare(
-      'SELECT food_total FROM tickets WHERE ticket_uuid = ?'
-    ).bind(ticketId).first() as { food_total: number } | null
+      'SELECT food_total, bid_price FROM tickets WHERE ticket_uuid = ?'
+    ).bind(ticketId).first() as { food_total: number; bid_price: number | null } | null
 
-    const newAmount = (tier?.price_total || 0) + (updatedTicket?.food_total || 0)
+    const tierPrice = tier?.price_total || 0
+    const foodTotal = updatedTicket?.food_total || 0
+    const bidPrice = updatedTicket?.bid_price
+    // Name Your Price: max(bid_price, tier_price + food_total)
+    const newAmount = bidPrice ? Math.max(bidPrice, tierPrice + foodTotal) : (tierPrice + foodTotal)
     await c.env.DB.prepare(
       `UPDATE purchase_log SET amount_paid = ?, updated_at = ? WHERE ticket_uuid = ? AND user_uuid = ?`
     ).bind(newAmount, new Date().toISOString(), ticketId, user.sub).run()
@@ -627,7 +662,11 @@ tickets.get('/tickets/my', async (c) => {
 
   const { results } = await c.env.DB.prepare(
     `SELECT t.*, e.event_name, e.start_time, e.end_time, e.location_name, e.banner_filename,
-            tt.tier_name, (tt.price_total + COALESCE(t.food_total, 0)) as price_total
+            tt.tier_name,
+            CASE WHEN t.bid_price IS NOT NULL
+              THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
+              ELSE (tt.price_total + COALESCE(t.food_total, 0))
+            END as price_total
      FROM tickets t
      JOIN events e ON t.event_uuid = e.event_uuid
      JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid
@@ -662,8 +701,11 @@ tickets.get('/tickets/:ticketId', async (c) => {
   const ticket = await c.env.DB.prepare(
     `SELECT t.*, e.event_name, e.start_time, e.end_time, e.location_name,
             e.banner_filename, e.tos_text, e.food_enabled, e.food_options as event_food_options,
-            tt.tier_name, tt.price_total as tier_price,
-            (tt.price_total + COALESCE(t.food_total, 0)) as price_total
+            tt.tier_name, tt.price_total as tier_price, tt.name_your_price,
+            CASE WHEN t.bid_price IS NOT NULL
+              THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
+              ELSE (tt.price_total + COALESCE(t.food_total, 0))
+            END as price_total
      FROM tickets t
      JOIN events e ON t.event_uuid = e.event_uuid
      JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid

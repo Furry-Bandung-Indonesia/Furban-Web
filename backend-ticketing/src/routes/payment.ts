@@ -239,16 +239,25 @@ payment.post('/generate', authMiddleware, async (c) => {
   const user = c.get('user') as JWTPayload
   const body = await c.req.json()
 
-  const { event_uuid, ticket_uuid, channel_code, nominal } = body
+  const { event_uuid, ticket_uuid, channel_code, nominal: clientNominal } = body
 
-  if (!event_uuid || !channel_code || !nominal) {
+  if (!event_uuid || !channel_code || !clientNominal) {
     return c.json({ message: 'event_uuid, channel_code, and nominal are required' }, 400)
   }
+
+  let nominal = Number(clientNominal)
 
   // If a ticket is attached, verify it hasn't expired by time
   if (ticket_uuid) {
     const ticket = await c.env.DB.prepare(
-      `SELECT ticket_uuid, purchase_status, claim_expiry FROM tickets WHERE ticket_uuid = ?`
+      `SELECT t.ticket_uuid, t.purchase_status, t.claim_expiry,
+              CASE WHEN t.bid_price IS NOT NULL 
+                THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
+                ELSE (tt.price_total + COALESCE(t.food_total, 0)) 
+              END as computed_nominal
+       FROM tickets t
+       JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid
+       WHERE t.ticket_uuid = ?`
     ).bind(ticket_uuid).first() as any
 
     if (!ticket) {
@@ -257,6 +266,10 @@ payment.post('/generate', authMiddleware, async (c) => {
     if (ticket.purchase_status !== 'under_payment') {
       return c.json({ message: `Ticket is already ${ticket.purchase_status}` }, 400)
     }
+
+    // OVERRIDE client given nominal amount securely with server calculated formula
+    // This utilizes SQLite directly in D1, dropping CPU usage drastically avoiding JS Object parsing computation
+    nominal = Number(ticket.computed_nominal)
     if (ticket.claim_expiry && new Date(ticket.claim_expiry) < new Date()) {
       await expireSingleTicket(c.env.DB, c.env.KV, ticket_uuid)
       return c.json({ message: 'Ticket claim has expired. Please claim a new ticket.' }, 410)

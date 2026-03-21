@@ -69,6 +69,7 @@
             <th class="px-6 py-3 text-left font-semibold">Ticket ID</th>
             <th class="px-6 py-3 text-left font-semibold">Attendee</th>
             <th class="px-6 py-3 text-left font-semibold">Tier</th>
+            <th class="px-6 py-3 text-right font-semibold">Price</th>
             <th class="px-6 py-3 text-left font-semibold">Food Prefs</th>
             <th class="px-6 py-3 text-left font-semibold">Status</th>
             <th class="px-6 py-3 text-right font-semibold">Actions</th>
@@ -98,6 +99,10 @@
               <span class="inline-flex items-center rounded-md bg-[#0df2f2]/10 px-2 py-1 text-xs font-medium text-[#0df2f2] ring-1 ring-inset ring-[#0df2f2]/20">
                 {{ att.tier_name || 'N/A' }}
               </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <span class="text-sm font-bold text-white tabular-nums">{{ formatCurrency(att.price_total) }}</span>
+              <span v-if="att.bid_price" class="block text-[10px] text-[#0df2f2] font-medium">Bid</span>
             </td>
             <td class="px-6 py-4">
               <div class="flex flex-wrap gap-1">
@@ -258,6 +263,10 @@
               <div class="bg-slate-900 rounded-lg p-3">
                 <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Ticket Base</p>
                 <p class="text-sm text-white mt-1">{{ formatCurrency(selectedAttendee.tier_price || selectedAttendee.price_total) }}</p>
+              </div>
+              <div v-if="selectedAttendee.bid_price" class="bg-slate-900 rounded-lg p-3 ring-1 ring-[#0df2f2]/20">
+                <p class="text-[10px] uppercase tracking-wider text-[#0df2f2] font-semibold">Your Bid Price</p>
+                <p class="text-sm text-[#0df2f2] font-bold mt-1">{{ formatCurrency(selectedAttendee.bid_price) }}</p>
               </div>
               <div v-if="selectedAttendee.food_total > 0" class="bg-slate-900 rounded-lg p-3">
                 <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Meal Add-on</p>

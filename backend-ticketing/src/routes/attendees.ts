@@ -42,7 +42,10 @@ attendees.get('/:eventId/attendees', eventPermission('eventId'), async (c) => {
   // Check ALL events — moderation is global (a ban in event A shows in event B).
   let query = `
     SELECT t.*, tt.tier_name, tt.price_total as tier_price,
-           (tt.price_total + COALESCE(t.food_total, 0)) as price_total,
+           CASE WHEN t.bid_price IS NOT NULL
+             THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
+             ELSE (tt.price_total + COALESCE(t.food_total, 0))
+           END as price_total,
            (SELECT CASE WHEN mal.attempt_type = 'BAN_BLOCKED' THEN 'BAN' ELSE 'WATCH' END
             FROM moderation_attempt_log mal
             WHERE mal.user_uuid = t.user_uuid
@@ -390,7 +393,10 @@ attendees.get('/:eventId/attendees/:ticketId', eventPermission('eventId'), async
 
   const ticket = await c.env.DB.prepare(
     `SELECT t.*, tt.tier_name, tt.price_total as tier_price,
-            (tt.price_total + COALESCE(t.food_total, 0)) as price_total
+            CASE WHEN t.bid_price IS NOT NULL
+              THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
+              ELSE (tt.price_total + COALESCE(t.food_total, 0))
+            END as price_total
      FROM tickets t
      JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid
      WHERE t.ticket_uuid = ? AND t.event_uuid = ?`
@@ -579,7 +585,10 @@ attendees.post('/:eventId/checkin/verify', eventPermission('eventId'), async (c)
       ...ticket,
       tier_name: tier?.tier_name || 'Unknown',
       tier_price: tier?.tier_price || 0,
-      price_total: (tier?.tier_price || 0) + (ticket.food_total || 0),
+      price_total: (ticket as any).bid_price
+        ? Math.max((ticket as any).bid_price, (tier?.tier_price || 0) + (ticket.food_total || 0))
+        : (tier?.tier_price || 0) + (ticket.food_total || 0),
+      bid_price: (ticket as any).bid_price || null,
       food_selection: JSON.parse(ticket.food_selection || '[]'),
       food_notes: ticket.food_notes || null,
       event_food_options: event?.food_options || '[]',

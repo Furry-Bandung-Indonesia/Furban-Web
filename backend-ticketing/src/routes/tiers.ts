@@ -60,8 +60,8 @@ tiers.post('/:eventId/tiers', eventPermission('eventId'), requireEventAdmin, asy
   await c.env.DB.prepare(
     `INSERT INTO ticket_tiers
      (tier_uuid, event_uuid, tier_name, tier_description, price_total, admin_fee_internal,
-      quota_total, quota_available, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      quota_total, quota_available, sort_order, name_your_price, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(
     uuid,
     eventId,
@@ -72,6 +72,7 @@ tiers.post('/:eventId/tiers', eventPermission('eventId'), requireEventAdmin, asy
     body.quota_total,
     body.quota_total, // quota_available starts = quota_total
     body.sort_order || 0,
+    body.name_your_price ? 1 : 0,
     now,
     now,
   ).run()
@@ -106,6 +107,7 @@ tiers.put('/:eventId/tiers/:tierId', eventPermission('eventId'), requireEventAdm
   if (body.price_total !== undefined) { updates.push('price_total = ?'); values.push(body.price_total) }
   if (body.admin_fee_internal !== undefined) { updates.push('admin_fee_internal = ?'); values.push(body.admin_fee_internal) }
   if (body.sort_order !== undefined) { updates.push('sort_order = ?'); values.push(body.sort_order) }
+  if (body.name_your_price !== undefined) { updates.push('name_your_price = ?'); values.push(body.name_your_price ? 1 : 0) }
 
   // Handle quota change: adjust quota_available by the delta
   if (body.quota_total !== undefined) {

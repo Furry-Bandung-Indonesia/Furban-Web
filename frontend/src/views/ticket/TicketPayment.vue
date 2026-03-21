@@ -134,7 +134,10 @@
                   <span class="text-[#94a3b8] text-sm">Ticket Type</span>
                   <div class="flex flex-col items-end">
                     <span class="text-white font-medium text-sm">{{ ticket.tier_name }}</span>
-                    <span class="text-[#0df2f2] text-xs font-bold">
+                    <span v-if="ticket.bid_price" class="text-[#0df2f2] text-xs font-bold">
+                      Your Bid Price: {{ formatPrice(ticket.bid_price) }}
+                    </span>
+                    <span v-else class="text-[#0df2f2] text-xs font-bold">
                       {{ formatPrice(ticket.price_total) }}
                     </span>
                   </div>
