@@ -183,7 +183,7 @@
         <!-- ═══ Food & Beverage ═══ -->
         <section class="bg-[#161e2c] rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-white">Food & Beverage</h3>
+            <h3 class="text-lg font-bold text-white">Food Choices</h3>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="form.food_enabled" class="sr-only peer" />
               <div class="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-[#0df2f2]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0df2f2]"></div>
@@ -249,7 +249,7 @@
         <!-- ═══ Drinks Menu ═══ -->
         <section class="bg-[#161e2c] rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="text-lg font-bold text-white">Drinks Menu</h3>
+            <h3 class="text-lg font-bold text-white">Drinks Choices</h3>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" v-model="form.drinks_enabled" class="sr-only peer" />
               <div class="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-[#0df2f2]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0df2f2]"></div>

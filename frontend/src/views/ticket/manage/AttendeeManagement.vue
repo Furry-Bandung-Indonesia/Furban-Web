@@ -70,7 +70,7 @@
             <th class="px-6 py-3 text-left font-semibold">Attendee</th>
             <th class="px-6 py-3 text-left font-semibold">Tier</th>
             <th class="px-6 py-3 text-right font-semibold">Price</th>
-            <th class="px-6 py-3 text-left font-semibold">Food Prefs</th>
+            <th class="px-6 py-3 text-left font-semibold">Meals & Bev</th>
             <th class="px-6 py-3 text-left font-semibold">Status</th>
             <th class="px-6 py-3 text-right font-semibold">Actions</th>
           </tr>
@@ -106,11 +106,15 @@
             </td>
             <td class="px-6 py-4">
               <div class="flex flex-wrap gap-1">
-                <span v-for="food in parseFoodSelection(att.food_selection)" :key="food.name || food"
+                <span v-for="food in parseFoodSelection(att.food_selection)" :key="'food-'+(food.name || food)"
                   class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
                   {{ typeof food === 'string' ? food : food.name }}{{ food.choice ? ` · ${food.choice}` : '' }}
                 </span>
-                <span v-if="!parseFoodSelection(att.food_selection).length" class="text-xs text-slate-500">—</span>
+                <span v-for="drink in parseDrinkSelection(att.drink_selection)" :key="'drink-'+(drink.name || drink)"
+                  class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+                  {{ typeof drink === 'string' ? drink : drink.name }}{{ drink.choice ? ` · ${drink.choice}` : '' }}
+                </span>
+                <span v-if="!parseFoodSelection(att.food_selection).length && !parseDrinkSelection(att.drink_selection).length" class="text-xs text-slate-500">—</span>
               </div>
             </td>
             <td class="px-6 py-4">
@@ -289,11 +293,11 @@
             </div>
           </div>
 
-          <!-- Food Selection with Prices & Choices -->
+          <!-- Merged Food & Drink Selection -->
           <div class="space-y-3">
-            <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Food Selection</h4>
-            <div v-if="detailFoodItems.length" class="space-y-2">
-              <div v-for="item in detailFoodItems" :key="item.name"
+            <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Meals & Beverage</h4>
+            <div v-if="detailFoodItems.length || detailDrinkItems.length" class="space-y-2">
+              <div v-for="item in detailFoodItems" :key="'food-'+item.name"
                 class="bg-slate-900 rounded-lg px-3 py-2.5 ring-1 ring-slate-800">
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-slate-200 font-medium">{{ item.name }}</span>
@@ -305,34 +309,63 @@
                   <span v-if="item.choicePrice > 0" class="text-[10px] font-medium text-amber-400">+{{ formatCurrency(item.choicePrice) }}</span>
                 </div>
               </div>
-              <div v-if="selectedAttendee.food_total > 0"
+              
+              <div v-for="item in detailDrinkItems" :key="'drink-'+item.name"
+                class="bg-slate-900 rounded-lg px-3 py-2.5 ring-1 ring-slate-800">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-slate-200 font-medium">{{ item.name }}</span>
+                  <span v-if="item.menuPrice > 0" class="text-xs font-medium text-amber-400">+{{ formatCurrency(item.menuPrice) }}</span>
+                  <span v-else class="text-xs font-medium text-green-400">Included</span>
+                </div>
+                <div v-if="item.choice" class="flex items-center justify-between mt-1 pl-3 border-l-2 border-slate-700">
+                  <span class="text-xs text-slate-400">{{ item.choice }}</span>
+                  <span v-if="item.choicePrice > 0" class="text-[10px] font-medium text-amber-400">+{{ formatCurrency(item.choicePrice) }}</span>
+                </div>
+              </div>
+
+              <div v-if="(selectedAttendee.food_total || 0) + (selectedAttendee.drink_total || 0) > 0"
                 class="flex items-center justify-between pt-2 border-t border-slate-700 px-1">
-                <span class="text-xs text-slate-400 uppercase tracking-wider">Food Add-on Total</span>
-                <span class="text-sm font-bold text-amber-400">{{ formatCurrency(selectedAttendee.food_total) }}</span>
+                <span class="text-xs text-slate-400 uppercase tracking-wider">Total Add-on</span>
+                <span class="text-sm font-bold text-amber-400">{{ formatCurrency((selectedAttendee.food_total || 0) + (selectedAttendee.drink_total || 0)) }}</span>
               </div>
             </div>
-            <span v-else class="text-sm text-slate-500">No food preferences selected</span>
+            <span v-else class="text-sm text-slate-500">No meals or beverages selected</span>
           </div>
 
           <!-- Food Notes -->
           <div v-if="selectedAttendee.food_notes" class="space-y-2">
             <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Food Notes</h4>
-            <p class="text-sm text-slate-300 bg-slate-900 rounded-lg px-3 py-2.5 ring-1 ring-slate-800 italic">{{ selectedAttendee.food_notes }}</p>
+            <p class="text-sm text-slate-300 bg-slate-900 rounded-lg px-3 py-2.5 ring-1 ring-slate-800 italic whitespace-pre-wrap">{{ selectedAttendee.food_notes }}</p>
           </div>
 
-          <!-- Food Received Status -->
-          <div v-if="detailFoodItems.length" class="space-y-3">
-            <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Food Received</h4>
-            <div class="flex items-center gap-3 p-3 rounded-lg border"
-              :class="selectedAttendee.food_received ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-900 border-slate-800'">
-              <span class="size-3 rounded-full" :class="selectedAttendee.food_received ? 'bg-green-400' : 'bg-slate-600'"></span>
-              <div>
-                <p class="text-sm font-medium" :class="selectedAttendee.food_received ? 'text-green-400' : 'text-slate-400'">
-                  {{ selectedAttendee.food_received ? 'Food Received' : 'Not Yet Received' }}
-                </p>
-                <p v-if="selectedAttendee.food_received && selectedAttendee.food_received_at" class="text-xs text-slate-500 mt-0.5">
-                  at {{ formatDateTime(selectedAttendee.food_received_at) }}
-                </p>
+          <!-- Add-ons Received Status -->
+          <div v-if="detailFoodItems.length || detailDrinkItems.length" class="space-y-3">
+            <h4 class="text-xs uppercase tracking-wider text-slate-500 font-semibold">Add-on Status</h4>
+            <div class="space-y-2">
+              <div v-if="detailFoodItems.length" class="flex items-center gap-3 p-3 rounded-lg border"
+                :class="selectedAttendee.food_received ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-900 border-slate-800'">
+                <span class="size-3 rounded-full" :class="selectedAttendee.food_received ? 'bg-green-400' : 'bg-slate-600'"></span>
+                <div>
+                  <p class="text-sm font-medium" :class="selectedAttendee.food_received ? 'text-green-400' : 'text-slate-400'">
+                    {{ selectedAttendee.food_received ? 'Food Received' : 'Food Pending' }}
+                  </p>
+                  <p v-if="selectedAttendee.food_received && selectedAttendee.food_received_at" class="text-xs text-slate-500 mt-0.5">
+                    at {{ formatDateTime(selectedAttendee.food_received_at) }}
+                  </p>
+                </div>
+              </div>
+
+              <div v-if="detailDrinkItems.length" class="flex items-center gap-3 p-3 rounded-lg border"
+                :class="selectedAttendee.drink_received ? 'bg-[#0df2f2]/10 border-[#0df2f2]/30' : 'bg-slate-900 border-slate-800'">
+                <span class="size-3 rounded-full" :class="selectedAttendee.drink_received ? 'bg-[#0df2f2]' : 'bg-slate-600'"></span>
+                <div>
+                  <p class="text-sm font-medium" :class="selectedAttendee.drink_received ? 'text-[#0df2f2]' : 'text-slate-400'">
+                    {{ selectedAttendee.drink_received ? 'Drink Received' : 'Drink Pending' }}
+                  </p>
+                  <p v-if="selectedAttendee.drink_received && selectedAttendee.drink_received_at" class="text-xs text-slate-500 mt-0.5">
+                    at {{ formatDateTime(selectedAttendee.drink_received_at) }}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -362,6 +395,21 @@
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             {{ actionLoading ? 'Processing...' : 'Undo Food Received' }}
           </button>
+          
+          <!-- Drink received toggle -->
+          <button v-if="detailDrinkItems.length && selectedAttendee.purchase_status === 'paid' && !selectedAttendee.drink_received"
+            @click="markDrinkReceived(selectedAttendee, true)" :disabled="actionLoading"
+            class="w-full px-4 py-2.5 rounded-lg bg-[#0df2f2]/20 text-[#0df2f2] text-sm font-semibold hover:bg-[#0df2f2]/30 disabled:opacity-50 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            {{ actionLoading ? 'Processing...' : 'Mark Drink Received' }}
+          </button>
+          <button v-if="detailDrinkItems.length && selectedAttendee.drink_received"
+            @click="markDrinkReceived(selectedAttendee, false)" :disabled="actionLoading"
+            class="w-full px-4 py-2.5 rounded-lg bg-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-600 disabled:opacity-50 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            {{ actionLoading ? 'Processing...' : 'Undo Drink Received' }}
+          </button>
+
           <!-- Manual Pay Override for pending tickets -->
           <button v-if="selectedAttendee.purchase_status === 'under_payment'"
             @click="handleManualPay(selectedAttendee)" :disabled="actionLoading"
@@ -508,13 +556,17 @@
               <div><span class="text-slate-400">Tier Name:</span> <span class="text-white">{{ transferSelectedSender.tier_name || 'N/A' }}</span></div>
             </div>
             <div class="mt-2">
-              <p class="text-xs text-slate-400 mb-1">Food Selection & Variants</p>
+              <p class="text-xs text-slate-400 mb-1">Meals & Beverage</p>
               <div class="flex flex-wrap gap-1">
-                <span v-for="food in parseFoodSelection(transferSelectedSender.food_selection)" :key="food.name || food"
+                <span v-for="food in parseFoodSelection(transferSelectedSender.food_selection)" :key="'food-'+(food.name || food)"
                   class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
                   {{ typeof food === 'string' ? food : food.name }}{{ food.choice ? ` · ${food.choice}` : '' }}
                 </span>
-                <span v-if="!parseFoodSelection(transferSelectedSender.food_selection).length" class="text-xs text-slate-500">—</span>
+                <span v-for="drink in parseDrinkSelection(transferSelectedSender.drink_selection)" :key="'drink-'+(drink.name || drink)"
+                  class="inline-flex items-center rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+                  {{ typeof drink === 'string' ? drink : drink.name }}{{ drink.choice ? ` · ${drink.choice}` : '' }}
+                </span>
+                <span v-if="!parseFoodSelection(transferSelectedSender.food_selection).length && !parseDrinkSelection(transferSelectedSender.drink_selection).length" class="text-xs text-slate-500">—</span>
               </div>
             </div>
           </div>
@@ -772,6 +824,15 @@ function parseFoodSelection(val) {
   } catch { return [] }
 }
 
+function parseDrinkSelection(val) {
+  if (!val) return []
+  try {
+    const parsed = typeof val === 'string' ? JSON.parse(val) : val
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => typeof item === 'string' ? { name: item } : item)
+  } catch { return [] }
+}
+
 /**
  * Parse event food_options (supports both legacy ["name"] and new [{name, price, choices}] format)
  */
@@ -786,14 +847,41 @@ function parseEventFoodOptions(raw) {
   } catch { return [] }
 }
 
+function parseEventDrinkOptions(raw) {
+  if (!raw) return []
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(o => typeof o === 'string'
+      ? { name: o, price: 0, choices: [] }
+      : { ...o, choices: Array.isArray(o.choices) ? o.choices : [] })
+  } catch { return [] }
+}
+
 /**
- * Get food items with prices and choices for the detail modal
+ * Get food & drink items with prices and choices for the detail modal
  */
 const detailFoodItems = computed(() => {
   if (!selectedAttendee.value) return []
   const selection = parseFoodSelection(selectedAttendee.value.food_selection)
   if (!selection.length) return []
   const eventOptions = parseEventFoodOptions(selectedAttendee.value.event_food_options)
+  return selection.map(item => {
+    const opt = eventOptions.find(o => o.name === item.name)
+    return {
+      name: item.name,
+      choice: item.choice || null,
+      menuPrice: opt?.price || 0,
+      choicePrice: item.choice_price || 0
+    }
+  })
+})
+
+const detailDrinkItems = computed(() => {
+  if (!selectedAttendee.value) return []
+  const selection = parseDrinkSelection(selectedAttendee.value.drink_selection)
+  if (!selection.length) return []
+  const eventOptions = parseEventDrinkOptions(selectedAttendee.value.event_drink_options)
   return selection.map(item => {
     const opt = eventOptions.find(o => o.name === item.name)
     return {
@@ -1199,6 +1287,24 @@ async function markFoodReceived(att, received) {
   }
 }
 
+async function markDrinkReceived(att, received) {
+  actionLoading.value = true
+  try {
+    await ticketApi.markDrinkReceived(eventId.value, { ticket_uuid: att.ticket_uuid, received })
+    att.drink_received = received ? 1 : 0
+    att.drink_received_at = received ? new Date().toISOString() : null
+    // Re-fetch detail to get updated data
+    try {
+      const res = await ticketApi.getAttendee(eventId.value, att.ticket_uuid)
+      selectedAttendee.value = res.attendee || res.ticket || res
+    } catch { /* keep existing */ }
+  } catch (e) {
+    alert(e.message || 'Failed to update drink status')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
 async function exportToExcel() {
   actionLoading.value = true
   try {
@@ -1212,7 +1318,7 @@ async function exportToExcel() {
     const exportData = res.attendees || []
 
     let csvContent = '\uFEFF' // BOM for Excel UTF-8
-    csvContent += 'Ticket Number,Nickname,First Name,Last Name,Food Selection,Choices/Variants\n'
+    csvContent += 'Ticket Number,Nickname,First Name,Last Name,Food Selection,Food Choices/Variants,Drink Selection,Drink Choices/Variants\n'
 
     exportData.forEach(att => {
       const ticketNum = att.ticket_number || att.ticket_uuid?.slice(0, 8) || ''
@@ -1224,13 +1330,19 @@ async function exportToExcel() {
       const foodNames = foodSelection.map(f => typeof f === 'string' ? f : f.name).join('; ')
       const foodChoices = foodSelection.map(f => f.choice || '').filter(Boolean).join('; ')
 
+      const drinkSelection = parseDrinkSelection(att.drink_selection)
+      const drinkNames = drinkSelection.map(f => typeof f === 'string' ? f : f.name).join('; ')
+      const drinkChoices = drinkSelection.map(f => f.choice || '').filter(Boolean).join('; ')
+
       const row = [
         `"${ticketNum}"`,
         `"${nickname.replace(/"/g, '""')}"`,
         `"${firstName.replace(/"/g, '""')}"`,
         `"${lastName.replace(/"/g, '""')}"`,
         `"${foodNames.replace(/"/g, '""')}"`,
-        `"${foodChoices.replace(/"/g, '""')}"`
+        `"${foodChoices.replace(/"/g, '""')}"`,
+        `"${drinkNames.replace(/"/g, '""')}"`,
+        `"${drinkChoices.replace(/"/g, '""')}"`
       ]
       csvContent += row.join(',') + '\n'
     })
