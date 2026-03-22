@@ -725,7 +725,9 @@ const drinkOptions = computed(() => {
   })
 })
 
-const drinkAddOnTotal = computed(() => {
+const drinkMissing = computed(() => { if (!drinksEnabled.value || drinkOptions.value.length === 0) return false; if (form.value.drink_selection.length === 0) return true; return form.value.drink_selection.some(sel => { const opt = drinkOptions.value.find(o => o.name === sel.name); return opt?.choices?.length > 0 && !sel.choice; }); });
+
+  const drinkAddOnTotal = computed(() => {
   return form.value.drink_selection.reduce((sum, sel) => {
     const opt = drinkOptions.value.find(o => o.name === sel.name)
     const menuPrice = opt?.price || 0
@@ -747,7 +749,7 @@ const firstNameNeedsChange = computed(() => {
 })
 
 const isSubmitDisabled = computed(() => {
-  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || !tosAgreed.value || firstNameNeedsChange.value
+  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || drinkMissing.value || !tosAgreed.value || firstNameNeedsChange.value
 })
 
 // Timer
