@@ -148,7 +148,10 @@
                   <span class="text-[#94a3b8] text-sm">Ticket Type</span>
                   <div class="flex flex-col items-end">
                     <span class="text-white font-medium text-sm">{{ ticket.tier_name }}</span>
-                    <span v-if="ticket.bid_price" class="text-[#0df2f2] text-xs font-bold">
+                      <span v-if="ticket.name_your_price && bidPrice" class="text-[#0df2f2] text-xs font-bold">
+                        Your Bid: {{ formatPrice(bidPrice) }}
+                      </span>
+                      <span v-else-if="ticket.bid_price" class="text-[#0df2f2] text-xs font-bold">
                       Your Bid: {{ formatPrice(ticket.bid_price) }}
                     </span>
                     <span v-else class="text-[#0df2f2] text-xs font-bold">
@@ -164,7 +167,7 @@
                   <span class="text-[#94a3b8] text-sm">Drink Add-on</span>
                   <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(drinkAddOnTotal) }}</span>
                 </div>
-                <div v-if="foodAddOnTotal > 0 || drinkAddOnTotal > 0 || ticket.bid_price" class="flex justify-between items-center border-t border-[#334155] pt-3">
+                  <div v-if="foodAddOnTotal > 0 || drinkAddOnTotal > 0 || bidPrice || ticket.bid_price" class="flex justify-between items-center border-t border-[#334155] pt-3">
                   <span class="text-white text-sm font-bold">Total</span>
                   <span class="text-[#0df2f2] text-sm font-bold">{{ formatPrice(computedTotal) }}</span>
                 </div>
@@ -399,7 +402,7 @@
                 <!-- Drink Selection -->
                 <div v-if="drinksEnabled && drinkOptions.length > 0" class="flex flex-col gap-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-white text-sm font-semibold tracking-wide">Drink Preference</span>
+                    <span class="text-white text-sm font-semibold tracking-wide">Drink Preference <span class="text-red-400">*</span></span>
                     <span class="text-[#94a3b8] text-xs">{{ drinkMultiSelect ? 'Select all that apply' : 'Choose one' }}</span>
                   </div>
                   <div class="flex flex-col gap-3">
@@ -736,11 +739,7 @@ const computedTotal = computed(() => {
   const tierPrice = ticket.value?.tier_price || ticket.value?.price_total || 0
   const food = foodAddOnTotal.value
   const drinks = drinkAddOnTotal.value
-  const bid = ticket.value?.bid_price
-  if (bid) {
-    return Math.max(bid, tierPrice + food + drinks)
-  }
-  return tierPrice + food + drinks
+    const bid = bidPrice.value || ticket.value?.bid_price
 })
 
 const firstNameNeedsChange = computed(() => {

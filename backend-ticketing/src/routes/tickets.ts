@@ -720,8 +720,8 @@ tickets.get('/tickets/my', async (c) => {
     `SELECT t.*, e.event_name, e.start_time, e.end_time, e.location_name, e.banner_filename,
             tt.tier_name,
             CASE WHEN t.bid_price IS NOT NULL
-              THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
-              ELSE (tt.price_total + COALESCE(t.food_total, 0))
+                THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
+                ELSE (tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
             END as price_total
      FROM tickets t
      JOIN events e ON t.event_uuid = e.event_uuid
@@ -759,8 +759,8 @@ tickets.get('/tickets/:ticketId', async (c) => {
             e.banner_filename, e.tos_text, e.food_enabled, e.food_options as event_food_options,
             tt.tier_name, tt.price_total as tier_price, tt.name_your_price,
             CASE WHEN t.bid_price IS NOT NULL
-              THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
-              ELSE (tt.price_total + COALESCE(t.food_total, 0))
+                THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
+                ELSE (tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
             END as price_total
      FROM tickets t
      JOIN events e ON t.event_uuid = e.event_uuid
