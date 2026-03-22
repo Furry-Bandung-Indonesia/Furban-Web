@@ -347,15 +347,19 @@
 
                   <!-- Total -->
                   <div class="border-t border-[#334155] pt-4 mt-2 space-y-2">
-                    <div v-if="ticket.food_total > 0" class="flex justify-between items-center">
+                    <div v-if="(ticket.food_total || 0) > 0 || (ticket.drink_total || 0) > 0" class="flex justify-between items-center">
                       <span class="text-[#94a3b8] text-sm">Ticket Base</span>
-                      <span class="text-white text-sm">{{ formatPrice(ticket.price_total - ticket.food_total) }}</span>
+                      <span class="text-white text-sm">{{ formatPrice(ticket.price_total - (ticket.food_total || 0) - (ticket.drink_total || 0)) }}</span>
                     </div>
                     <div v-if="ticket.food_total > 0" class="flex justify-between items-center">
                       <span class="text-[#94a3b8] text-sm">Meal Add-on</span>
                       <span class="text-amber-400 text-sm font-medium">+{{ formatPrice(ticket.food_total) }}</span>
                     </div>
-                    <div class="flex justify-between items-end" :class="ticket.food_total > 0 ? 'border-t border-[#334155]/50 pt-2' : ''">
+                    <div v-if="ticket.drink_total > 0" class="flex justify-between items-center">
+                      <span class="text-[#94a3b8] text-sm">Drink Add-on</span>
+                      <span class="text-amber-400 text-sm font-medium">+{{ formatPrice(ticket.drink_total) }}</span>
+                    </div>
+                    <div class="flex justify-between items-end" :class="(ticket.food_total || 0) > 0 || (ticket.drink_total || 0) > 0 ? 'border-t border-[#334155]/50 pt-2' : ''">
                       <span class="text-[#94a3b8] text-sm font-medium">Total Payment</span>
                       <span class="text-white text-2xl font-bold">{{ formatPrice(ticket.price_total) }}</span>
                     </div>
