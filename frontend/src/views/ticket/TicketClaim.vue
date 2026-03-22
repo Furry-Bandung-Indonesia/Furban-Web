@@ -394,20 +394,13 @@
                     <span class="text-[#94a3b8] text-xs">Meal add-on</span>
                     <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(foodAddOnTotal) }}</span>
                   </div>
-                  <!-- Food notes -->
-                  <div class="flex flex-col gap-2">
-                    <span class="text-[#94a3b8] text-xs">Notes <span class="text-[#475569]">(optional)</span></span>
-                    <textarea v-model="form.food_notes" rows="2" maxlength="500"
-                      class="w-full px-4 py-2.5 rounded-lg bg-[#1e293b] text-white text-sm border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] resize-none transition-all"
-                      placeholder="e.g. No onions, extra spicy, allergies..."></textarea>
-                  </div>
                 </div>
 
                 <!-- Drink Selection -->
                 <div v-if="drinksEnabled && drinkOptions.length > 0" class="flex flex-col gap-3">
                   <div class="flex items-center justify-between">
                     <span class="text-white text-sm font-semibold tracking-wide">Drink Preference</span>
-                    <span class="text-[#94a3b8] text-xs">Select all that apply</span>
+                    <span class="text-[#94a3b8] text-xs">{{ drinkMultiSelect ? 'Select all that apply' : 'Choose one' }}</span>
                   </div>
                   <div class="flex flex-col gap-3">
                     <div v-for="option in drinkOptions" :key="option.name"
@@ -415,14 +408,24 @@
                       :class="isDrinkSelected(option.name) ? 'border-[#0df2f2] bg-[#0df2f2]/5' : 'border-[#334155] bg-[#1e293b] hover:border-[#475569]'">
                       <!-- Drink item header -->
                       <label class="flex items-center gap-3 px-4 py-3 cursor-pointer">
-                        <div class="relative flex items-center" @click.prevent="toggleDrinkItem(option.name)">
-                          <div class="w-5 h-5 border-2 rounded flex items-center justify-center transition-all"
-                            :class="isDrinkSelected(option.name) ? 'border-[#0df2f2] bg-[#0df2f2]' : 'border-[#64748b] bg-transparent'">
-                            <svg v-if="isDrinkSelected(option.name)" class="w-3 h-3 text-[#020617]" viewBox="0 0 20 20" fill="currentColor">
-                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                            </svg>
+                        <template v-if="drinkMultiSelect">
+                          <div class="relative flex items-center" @click.prevent="toggleDrinkItem(option.name)">
+                            <div class="w-5 h-5 border-2 rounded flex items-center justify-center transition-all"
+                              :class="isDrinkSelected(option.name) ? 'border-[#0df2f2] bg-[#0df2f2]' : 'border-[#64748b] bg-transparent'">
+                              <svg v-if="isDrinkSelected(option.name)" class="w-3 h-3 text-[#020617]" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                              </svg>
+                            </div>
                           </div>
-                        </div>
+                        </template>
+                        <template v-else>
+                          <div class="relative flex items-center" @click.prevent="selectSingleDrink(option.name)">
+                            <div class="w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all"
+                              :class="isDrinkSelected(option.name) ? 'border-[#0df2f2]' : 'border-[#64748b]'">
+                              <div v-if="isDrinkSelected(option.name)" class="w-2.5 h-2.5 rounded-full bg-[#0df2f2]"></div>
+                            </div>
+                          </div>
+                        </template>
                         <div class="flex flex-1 items-center justify-between">
                           <span class="text-white text-sm font-medium">{{ option.name }}</span>
                           <span class="text-xs font-medium" :class="option.price > 0 ? 'text-amber-400' : 'text-green-400'">
@@ -451,11 +454,19 @@
                       </div>
                     </div>
                   </div>
-                  <!-- Drink add-on subtotal -->
+                    <!-- Drink add-on subtotal -->
                   <div v-if="drinkAddOnTotal > 0" class="flex justify-between items-center bg-[#0f172a] rounded-lg px-4 py-2 border border-[#334155]">
                     <span class="text-[#94a3b8] text-xs">Drink add-on</span>
                     <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(drinkAddOnTotal) }}</span>
                   </div>
+                </div>
+
+                <!-- Food & Drink notes -->
+                <div v-if="(foodEnabled && foodOptions.length > 0) || (drinksEnabled && drinkOptions.length > 0)" class="flex flex-col gap-2">
+                  <span class="text-[#94a3b8] text-xs">Notes <span class="text-[#475569]">(optional)</span></span>
+                  <textarea v-model="form.food_notes" rows="2" maxlength="500"
+                    class="w-full px-4 py-2.5 rounded-lg bg-[#1e293b] text-white text-sm border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] resize-none transition-all"
+                    placeholder="e.g. No onions, extra spicy, allergies..."></textarea>
                 </div>
 
                 <!-- TOS Agreement -->
@@ -674,6 +685,11 @@ function toggleDrinkItem(name) {
   }
 }
 
+function selectSingleDrink(name) {
+  if (form.value.drink_selection.length === 1 && form.value.drink_selection[0].name === name) return
+  form.value.drink_selection = [{ name }]
+}
+
 function setDrinkChoice(menuName, choiceName, choicePrice) {
   const sel = form.value.drink_selection.find(s => s.name === menuName)
   if (sel) {
@@ -685,6 +701,11 @@ function setDrinkChoice(menuName, choiceName, choicePrice) {
 const drinksEnabled = computed(() => {
   const de = event.value?.drinks_enabled
   return de === 1 || de === true || de === '1'
+})
+
+const drinkMultiSelect = computed(() => {
+  const dms = event.value?.drinks_multi_select
+  return dms === 1 || dms === true || dms === '1'
 })
 
 const drinkOptions = computed(() => {
