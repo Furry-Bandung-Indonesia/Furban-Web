@@ -190,6 +190,7 @@
                     </div>
                   </div>
                 </div>
+              </div>
             </div>
 
             <!-- Existing Ticket Warning -->
