@@ -734,12 +734,26 @@ const drinkAddOnTotal = computed(() => {
   }, 0)
 })
 
+const drinkMissing = computed(() => {
+  if (!drinksEnabled.value || drinkOptions.value.length === 0) return false
+  if (form.value.drink_selection.length === 0) return true
+  // Check if any selected item with choices doesn't have a choice picked
+  return form.value.drink_selection.some(sel => {
+    const opt = drinkOptions.value.find(o => o.name === sel.name)
+    return opt?.choices?.length > 0 && !sel.choice
+  })
+})
+
 // Name Your Price: total = max(bid_price, tier_price + food_total + drink_total)
 const computedTotal = computed(() => {
   const tierPrice = ticket.value?.tier_price || ticket.value?.price_total || 0
   const food = foodAddOnTotal.value
   const drinks = drinkAddOnTotal.value
-    const bid = bidPrice.value || ticket.value?.bid_price
+  const bid = bidPrice.value || ticket.value?.bid_price
+  if (bid) {
+    return Math.max(bid, tierPrice + food + drinks)
+  }
+  return tierPrice + food + drinks
 })
 
 const firstNameNeedsChange = computed(() => {
@@ -747,7 +761,7 @@ const firstNameNeedsChange = computed(() => {
 })
 
 const isSubmitDisabled = computed(() => {
-  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || !tosAgreed.value || firstNameNeedsChange.value
+  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || drinkMissing.value || !tosAgreed.value || firstNameNeedsChange.value
 })
 
 // Timer
