@@ -255,6 +255,39 @@
                       </span>
                     </div>
                   </div>
+
+                  <!-- Drink Selection -->
+                  <div v-if="parseDrinkSelection(verifyResult.ticket?.drink_selection).length" class="py-2 border-t border-slate-800">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider block mb-2">Drink Selection</span>
+                    <div class="space-y-1.5">
+                      <div v-for="item in verifyDrinkItems" :key="item.name"
+                        class="rounded-lg bg-slate-800 px-2.5 py-1.5">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-slate-200 font-medium">{{ item.name }}</span>
+                          <span v-if="item.menuPrice > 0" class="text-[10px] font-medium text-amber-400">+{{ formatCurrency(item.menuPrice) }}</span>
+                          <span v-else class="text-[10px] font-medium text-green-400">Included</span>
+                        </div>
+                        <div v-if="item.choice" class="flex items-center justify-between mt-0.5 pl-2 border-l-2 border-slate-700">
+                          <span class="text-[10px] text-slate-400">{{ item.choice }}</span>
+                          <span v-if="item.choicePrice > 0" class="text-[10px] text-amber-400">+{{ formatCurrency(item.choicePrice) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="verifyResult.ticket?.drink_total > 0" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-700">
+                      <span class="text-[10px] text-slate-500 uppercase">Drink Add-on</span>
+                      <span class="text-xs font-bold text-amber-400">{{ formatCurrency(verifyResult.ticket.drink_total) }}</span>
+                    </div>
+                    <!-- Drink received status -->
+                    <div class="mt-2">
+                      <div class="flex items-center gap-3 p-2.5 rounded-lg"
+                        :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-green-500/10 border border-green-500/30' : 'bg-slate-800'">
+                        <span class="size-2.5 rounded-full" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-green-400' : 'bg-slate-600'"></span>
+                        <span class="text-xs font-medium" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'text-green-400' : 'text-slate-400'">
+                          {{ verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'Drink Already Received' : 'Drink Not Yet Received' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Already redeemed warning -->
@@ -291,6 +324,16 @@
                     </div>
                   </label>
 
+                  <!-- Drink received checkbox (shown during check-in if drink exists) -->
+                  <label v-if="parseDrinkSelection(verifyResult.ticket?.drink_selection).length && !verifyResult.already_redeemed && !(verifyResult.drink_received || verifyResult.ticket?.drink_received)"
+                    class="flex items-center gap-3 p-3 rounded-lg bg-slate-800 cursor-pointer select-none hover:bg-slate-700 transition-colors">
+                    <input type="checkbox" v-model="checkInDrinkReceived" class="rounded border-slate-600 bg-slate-900 text-[#0df2f2] focus:ring-[#0df2f2]" />
+                    <div>
+                      <span class="text-sm font-medium text-white">Also mark drink as received</span>
+                      <p class="text-xs text-slate-400 mt-0.5">Check if attendee is receiving drink now</p>
+                    </div>
+                  </label>
+
                   <div class="flex gap-3">
                     <button v-if="!verifyResult.already_redeemed" @click="handleRedeem" :disabled="isRedeeming"
                       class="flex-1 px-4 py-2.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
@@ -301,7 +344,14 @@
                     <button v-if="verifyResult.already_redeemed && parseFoodSelection(verifyResult.ticket?.food_selection).length && !(verifyResult.food_received || verifyResult.ticket?.food_received)"
                       @click="handleFoodOnly" :disabled="isRedeeming"
                       class="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 disabled:opacity-50">
-                      {{ isRedeeming ? 'Processing...' : 'Mark Food Received' }}
+                      {{ isRedeeming ? 'Processing...' : 'Confirm Food Pick-up' }}
+                    </button>
+
+                    <!-- Drink-only action for already checked-in tickets -->
+                    <button v-if="verifyResult.already_redeemed && parseDrinkSelection(verifyResult.ticket?.drink_selection).length && !(verifyResult.drink_received || verifyResult.ticket?.drink_received)"
+                      @click="handleDrinkOnly" :disabled="isRedeeming"
+                      class="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                      {{ isRedeeming ? 'Processing...' : 'Confirm Drink Pick-up' }}
                     </button>
 
                     <button @click="clearResult" class="px-4 py-2.5 rounded-lg border border-slate-700 text-white text-sm hover:bg-slate-800">
@@ -512,6 +562,7 @@ const verifyProfile = ref(null)
 const recentCheckins = ref([])
 const stats = ref({ total_tickets: 0, paid_tickets: 0, redeemed_tickets: 0, pending_checkin: 0 })
 const checkInFoodReceived = ref(false)
+const checkInDrinkReceived = ref(false)
 const showScannerModModal = ref(false)
 const scannerModTarget = ref(null)
 const scannerModEntries = ref([])
@@ -564,6 +615,43 @@ const verifyFoodItems = computed(() => {
   })
 })
 
+function parseDrinkSelection(val) {
+  if (!val) return []
+  try {
+    const parsed = typeof val === 'string' ? JSON.parse(val) : val
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(item => typeof item === 'string' ? { name: item } : item)
+  } catch { return [] }
+}
+
+function parseEventDrinkOptions(raw) {
+  if (!raw) return []
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(o => {
+      if (typeof o === 'string') return { name: o, price: 0, choices: [] }
+      return { name: o.name || '', price: Number(o.price) || 0, choices: Array.isArray(o.choices) ? o.choices : [] }
+    })
+  } catch { return [] }
+}
+
+const verifyDrinkItems = computed(() => {
+  if (!verifyResult.value?.ticket) return []
+  const selection = parseDrinkSelection(verifyResult.value.ticket.drink_selection)
+  if (!selection.length) return []
+  const eventOptions = parseEventDrinkOptions(verifyResult.value.ticket.event_drink_options)
+  return selection.map(sel => {
+    const opt = eventOptions.find(o => o.name === sel.name)
+    return {
+      name: sel.name,
+      choice: sel.choice || null,
+      menuPrice: opt?.price || 0,
+      choicePrice: sel.choice_price || 0,
+    }
+  })
+})
+
 function formatCurrency(val) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val || 0)
 }
@@ -578,6 +666,7 @@ function clearResult() {
   verifyProfile.value = null
   manualSearch.value = ''
   checkInFoodReceived.value = false
+  checkInDrinkReceived.value = false
   // Reset scan cooldown so the next scan proceeds
   lastScannedId = null
   scanCooldown = false
@@ -700,6 +789,7 @@ async function handleRedeem() {
   try {
     const body = { ticket_uuid: verifyResult.value.ticket.ticket_uuid }
     if (checkInFoodReceived.value) body.food_received = true
+    if (checkInDrinkReceived.value) body.drink_received = true
     const res = await ticketApi.redeemTicket(eventId.value, body)
     // Add to recent check-ins
     recentCheckins.value.unshift({
@@ -739,6 +829,24 @@ async function handleFoodOnly() {
     if (verifyResult.value.ticket) verifyResult.value.ticket.food_received = 1
   } catch (e) {
     alert(e.message || 'Failed to mark food received')
+  } finally {
+    isRedeeming.value = false
+  }
+}
+
+async function handleDrinkOnly() {
+  if (!verifyResult.value?.ticket?.ticket_uuid) return
+  isRedeeming.value = true
+  try {
+    await ticketApi.markDrinkReceived(eventId.value, {
+      ticket_uuid: verifyResult.value.ticket.ticket_uuid,
+      received: true,
+    })
+    // Update local state
+    verifyResult.value.drink_received = true
+    if (verifyResult.value.ticket) verifyResult.value.ticket.drink_received = 1
+  } catch (e) {
+    alert(e.message || 'Failed to mark drink received')
   } finally {
     isRedeeming.value = false
   }

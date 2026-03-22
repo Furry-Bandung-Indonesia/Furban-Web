@@ -130,16 +130,20 @@
               </div>
             </div>
 
-            <!-- Pricing Breakdown (when food add-on exists) -->
-            <div v-if="ticket.food_total > 0" class="bg-[#1a2332] border border-[#1f2937] rounded-xl p-4 space-y-2">
+            <!-- Pricing Breakdown (when food or drink add-on exists) -->
+            <div v-if="ticket.food_total > 0 || ticket.drink_total > 0" class="bg-[#1a2332] border border-[#1f2937] rounded-xl p-4 space-y-2">
               <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold mb-2">Price Breakdown</p>
               <div class="flex justify-between text-sm">
                 <span class="text-[#94a3b8]">Ticket Base</span>
-                <span class="text-white">IDR {{ (ticket.tier_price || (ticket.price_total - ticket.food_total)).toLocaleString('id-ID') }}</span>
+                <span class="text-white">IDR {{ (ticket.tier_price || (ticket.price_total - (ticket.food_total || 0) - (ticket.drink_total || 0))).toLocaleString('id-ID') }}</span>
               </div>
-              <div class="flex justify-between text-sm">
+              <div v-if="ticket.food_total > 0" class="flex justify-between text-sm">
                 <span class="text-[#94a3b8]">Meal Add-on</span>
                 <span class="text-amber-400">+IDR {{ ticket.food_total.toLocaleString('id-ID') }}</span>
+              </div>
+              <div v-if="ticket.drink_total > 0" class="flex justify-between text-sm">
+                <span class="text-[#94a3b8]">Drink Add-on</span>
+                <span class="text-amber-400">+IDR {{ ticket.drink_total.toLocaleString('id-ID') }}</span>
               </div>
               <div class="flex justify-between text-sm pt-2 border-t border-[#1f2937] font-bold">
                 <span class="text-white">Total</span>
@@ -182,6 +186,46 @@
                   </p>
                   <p class="text-xs mt-0.5" :class="ticket.food_received ? 'text-green-400/60' : 'text-amber-400/60'">
                     {{ ticket.food_received ? 'Your meal has been collected.' : 'Present your QR code at the food station to collect your meal.' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Drink Selection with Prices -->
+            <div v-if="ticket.drink_selection && ticket.drink_selection !== '[]'" class="space-y-2">
+              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold">Drink Selection</p>
+              <div class="space-y-1.5">
+                <div v-for="item in drinkItemsWithPrices" :key="item.name"
+                  class="flex items-center justify-between bg-[#1a2332] border border-[#1f2937] rounded-lg px-3 py-2">
+                  <div>
+                    <span class="text-sm text-white">{{ item.name }}</span>
+                    <span v-if="item.choice" class="text-xs text-[#94a3b8] ml-1">— {{ item.choice }}</span>
+                  </div>
+                  <span v-if="item.price > 0" class="text-xs font-medium text-amber-400">+IDR {{ item.price.toLocaleString('id-ID') }}</span>
+                  <span v-else class="text-xs font-medium text-green-400">Included</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Drink Received Status -->
+            <div v-if="ticket.drink_selection && ticket.drink_selection !== '[]' && ticket.purchase_status === 'paid'">
+              <div class="flex items-center gap-3 p-4 rounded-xl border"
+                :class="ticket.drink_received ? 'bg-green-500/10 border-green-500/30' : 'bg-amber-500/10 border-amber-500/30'">
+                <div class="size-10 rounded-full flex items-center justify-center"
+                  :class="ticket.drink_received ? 'bg-green-500/20' : 'bg-amber-500/20'">
+                  <svg v-if="ticket.drink_received" class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-sm font-bold" :class="ticket.drink_received ? 'text-green-400' : 'text-amber-400'">
+                    {{ ticket.drink_received ? 'Drink Received' : 'Drink Not Yet Received' }}
+                  </p>
+                  <p class="text-xs mt-0.5" :class="ticket.drink_received ? 'text-green-400/60' : 'text-amber-400/60'">
+                    {{ ticket.drink_received ? 'Your drink has been collected.' : 'Present your QR code at the drink station to collect your drink.' }}
                   </p>
                 </div>
               </div>
@@ -251,6 +295,15 @@ export default {
       } catch { return [] }
     }
 
+    function parseEventDrinkOptions(raw) {
+      if (!raw) return []
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (!Array.isArray(parsed)) return []
+        return parsed.map(o => typeof o === 'string' ? { name: o, price: 0 } : o)
+      } catch { return [] }
+    }
+
     const foodItemsWithPrices = computed(() => {
       if (!ticket.value) return []
       try {
@@ -264,6 +317,29 @@ export default {
             return { name: item, choice: null, price: opt?.price || 0 }
           }
           // New format: { name, choice, choice_price }
+          const opt = eventOptions.find(o => o.name === item.name)
+          const basePrice = opt?.price || 0
+          const choicePrice = item.choice_price || 0
+          return {
+            name: item.name,
+            choice: item.choice || null,
+            price: basePrice + choicePrice,
+          }
+        })
+      } catch { return [] }
+    })
+
+    const drinkItemsWithPrices = computed(() => {
+      if (!ticket.value) return []
+      try {
+        const selection = JSON.parse(ticket.value.drink_selection || '[]')
+        if (!Array.isArray(selection) || !selection.length) return []
+        const eventOptions = parseEventDrinkOptions(ticket.value.event_drink_options)
+        return selection.map(item => {
+          if (typeof item === 'string') {
+            const opt = eventOptions.find(o => o.name === item)
+            return { name: item, choice: null, price: opt?.price || 0 }
+          }
           const opt = eventOptions.find(o => o.name === item.name)
           const basePrice = opt?.price || 0
           const choicePrice = item.choice_price || 0
@@ -336,6 +412,7 @@ export default {
       formatDate,
       parseFoodSelection,
       foodItemsWithPrices,
+      drinkItemsWithPrices,
       shareTicket,
       downloadTicket,
     }

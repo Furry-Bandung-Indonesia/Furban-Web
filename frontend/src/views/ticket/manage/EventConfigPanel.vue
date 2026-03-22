@@ -246,6 +246,67 @@
           </div>
         </section>
 
+        <!-- ═══ Drinks Menu ═══ -->
+        <section class="bg-[#161e2c] rounded-xl border border-slate-800 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-white">Drinks Menu</h3>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="form.drinks_enabled" class="sr-only peer" />
+              <div class="w-11 h-6 bg-slate-700 peer-focus:ring-2 peer-focus:ring-[#0df2f2]/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0df2f2]"></div>
+              <span class="ml-2 text-sm text-slate-300">{{ form.drinks_enabled ? 'Enabled' : 'Disabled' }}</span>
+            </label>
+          </div>
+          <div v-if="form.drinks_enabled" class="p-6 space-y-4">
+            <!-- Drink options list -->
+            <div class="space-y-4">
+              <div v-for="(opt, idx) in drinkOptions" :key="idx" class="bg-slate-900 rounded-lg ring-1 ring-slate-700 overflow-hidden">
+                <!-- Menu item header -->
+                <div class="flex items-center gap-3 px-4 py-3">
+                  <button @click="opt._expanded = !opt._expanded" class="text-slate-400 hover:text-white transition-colors shrink-0">
+                    <svg class="w-4 h-4 transition-transform" :class="opt._expanded && 'rotate-90'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                  <input v-model="drinkOptions[idx].name" class="flex-1 bg-transparent border-0 text-white text-sm focus:ring-0 p-0" placeholder="Drink item name (e.g. Cola)" />
+                  <div class="flex items-center gap-1 shrink-0">
+                    <span class="text-slate-500 text-xs">IDR</span>
+                    <input v-model.number="drinkOptions[idx].price" type="number" min="0" step="1000"
+                      class="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white text-sm text-right focus:ring-1 focus:ring-[#0df2f2] focus:border-[#0df2f2]"
+                      placeholder="0" />
+                  </div>
+                  <span v-if="opt.choices?.length" class="text-[10px] text-slate-500 shrink-0">{{ opt.choices.length }} choice{{ opt.choices.length > 1 ? 's' : '' }}</span>
+                  <button @click="drinkOptions.splice(idx, 1)" class="text-slate-400 hover:text-red-400 shrink-0">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <!-- Choices (sub-options) -->
+                <div v-if="opt._expanded" class="border-t border-slate-800 px-4 py-3 bg-slate-950/50 space-y-2">
+                  <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Choices / Variants <span class="normal-case font-normal">(e.g. size, flavor)</span></p>
+                  <div v-for="(ch, ci) in (opt.choices || [])" :key="ci" class="flex items-center gap-2">
+                    <span class="text-slate-600 text-xs">└</span>
+                    <input v-model="opt.choices[ci].name" class="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white text-xs focus:ring-1 focus:ring-[#0df2f2] focus:border-[#0df2f2]" placeholder="Choice name (e.g. Large)" />
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="text-slate-600 text-[10px]">+IDR</span>
+                      <input v-model.number="opt.choices[ci].price" type="number" min="0" step="1000"
+                        class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-white text-xs text-right focus:ring-1 focus:ring-[#0df2f2] focus:border-[#0df2f2]"
+                        placeholder="0" />
+                    </div>
+                    <button @click="opt.choices.splice(ci, 1)" class="text-slate-500 hover:text-red-400">
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <button @click="if (!opt.choices) opt.choices = []; opt.choices.push({ name: '', price: 0 })" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#0df2f2] transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                    Add Choice
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button @click="drinkOptions.push({ name: '', price: 0, choices: [], _expanded: false })" class="inline-flex items-center gap-2 text-sm text-[#0df2f2] hover:text-white transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+              Add Drink Item
+            </button>
+          </div>
+        </section>
+
         <!-- ═══ Ticket Sales Status ═══ -->
         <section class="bg-[#161e2c] rounded-xl border border-slate-800 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
@@ -489,18 +550,20 @@ const form = reactive({
   end_time: '',
   food_enabled: false,
   food_multi_select: false,
+  drinks_enabled: false,
   sales_status: 'available',
   sales_open_time: '',
   sales_close_time: '',
 })
 
 const foodOptions = ref([])
+const drinkOptions = ref([])
 
 // Snapshot for change detection
 const formSnapshot = ref('')
 
 const hasChanges = computed(() => {
-  const current = JSON.stringify({ ...form, food_options: foodOptions.value, banner_changed: !!bannerFile.value })
+  const current = JSON.stringify({ ...form, food_options: foodOptions.value, drink_options: drinkOptions.value, banner_changed: !!bannerFile.value })
   return current !== formSnapshot.value
 })
 
@@ -566,6 +629,7 @@ function populateForm(ev) {
   form.end_time = toLocalDatetime(ev.end_time)
   form.food_enabled = !!ev.food_enabled
   form.food_multi_select = !!ev.food_multi_select
+  form.drinks_enabled = !!ev.drinks_enabled
   form.sales_status = ev.sales_status || 'available'
   form.sales_open_time = ev.sales_open_time ? toLocalDatetime(ev.sales_open_time) : ''
   form.sales_close_time = ev.sales_close_time ? toLocalDatetime(ev.sales_close_time) : ''
@@ -592,13 +656,33 @@ function populateForm(ev) {
     foodOptions.value = []
   }
 
+  // Parse drink_options
+  try {
+    const opts = typeof ev.drink_options === 'string' ? JSON.parse(ev.drink_options) : ev.drink_options
+    if (Array.isArray(opts)) {
+      drinkOptions.value = opts.map(item => {
+        if (typeof item === 'string') return { name: item, price: 0, choices: [], _expanded: false }
+        return {
+          name: item.name || '',
+          price: Number(item.price) || 0,
+          choices: Array.isArray(item.choices) ? item.choices.map(c => ({ name: c.name || '', price: Number(c.price) || 0 })) : [],
+          _expanded: false,
+        }
+      })
+    } else {
+      drinkOptions.value = []
+    }
+  } catch {
+    drinkOptions.value = []
+  }
+
   bannerFile.value = null
   bannerPreview.value = null
   takeSnapshot()
 }
 
 function takeSnapshot() {
-  formSnapshot.value = JSON.stringify({ ...form, food_options: foodOptions.value, banner_changed: false })
+  formSnapshot.value = JSON.stringify({ ...form, food_options: foodOptions.value, drink_options: drinkOptions.value, banner_changed: false })
 }
 
 function resetForm() {
@@ -646,12 +730,18 @@ async function saveEvent() {
     fd.append('end_time', new Date(form.end_time).toISOString())
     fd.append('food_enabled', form.food_enabled ? '1' : '0')
     fd.append('food_multi_select', form.food_multi_select ? '1' : '0')
+    fd.append('drinks_enabled', form.drinks_enabled ? '1' : '0')
     fd.append('sales_status', form.sales_status)
     if (form.sales_open_time) fd.append('sales_open_time', new Date(form.sales_open_time).toISOString())
     else fd.append('sales_open_time', '')
     if (form.sales_close_time) fd.append('sales_close_time', new Date(form.sales_close_time).toISOString())
     else fd.append('sales_close_time', '')
     if (foodOptions.value.length) fd.append('food_options', JSON.stringify(foodOptions.value.filter(o => o.name).map(o => ({
+      name: o.name,
+      price: o.price || 0,
+      choices: (o.choices || []).filter(c => c.name).map(c => ({ name: c.name, price: c.price || 0 })),
+    }))))
+    if (drinkOptions.value.length) fd.append('drink_options', JSON.stringify(drinkOptions.value.filter(o => o.name).map(o => ({
       name: o.name,
       price: o.price || 0,
       choices: (o.choices || []).filter(c => c.name).map(c => ({ name: c.name, price: c.price || 0 })),
