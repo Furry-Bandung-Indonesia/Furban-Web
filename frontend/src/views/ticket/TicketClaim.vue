@@ -396,7 +396,7 @@
                   </div>
                   <!-- Food notes -->
                   <div class="flex flex-col gap-2">
-                    <span class="text-[#94a3b8] text-xs">Special instructions / notes <span class="text-[#475569]">(optional)</span></span>
+                    <span class="text-[#94a3b8] text-xs">Notes <span class="text-[#475569]">(optional)</span></span>
                     <textarea v-model="form.food_notes" rows="2" maxlength="500"
                       class="w-full px-4 py-2.5 rounded-lg bg-[#1e293b] text-white text-sm border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] resize-none transition-all"
                       placeholder="e.g. No onions, extra spicy, allergies..."></textarea>

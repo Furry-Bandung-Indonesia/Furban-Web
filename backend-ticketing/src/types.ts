@@ -49,6 +49,7 @@ export interface EventRow {
   food_multi_select: number
   food_options: string
   drinks_enabled: number
+  drinks_multi_select: number
   drink_options: string
   status: 'draft' | 'published' | 'closed'
   sales_status: 'available' | 'sold_out' | 'coming_soon' | 'unavailable'

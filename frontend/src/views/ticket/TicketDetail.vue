@@ -151,82 +151,60 @@
               </div>
             </div>
 
-            <!-- Food Selection with Prices -->
-            <div v-if="ticket.food_selection && ticket.food_selection !== '[]'" class="space-y-2">
-              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold">Food Selection</p>
-              <div class="space-y-1.5">
-                <div v-for="item in foodItemsWithPrices" :key="item.name"
-                  class="flex items-center justify-between bg-[#1a2332] border border-[#1f2937] rounded-lg px-3 py-2">
-                  <div>
-                    <span class="text-sm text-white">{{ item.name }}</span>
-                    <span v-if="item.choice" class="text-xs text-[#94a3b8] ml-1">— {{ item.choice }}</span>
+            <!-- Merged Food & Drink Selection -->
+            <div v-if="(ticket.food_selection && ticket.food_selection !== '[]') || (ticket.drink_selection && ticket.drink_selection !== '[]')" class="space-y-4">
+              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold -mb-2">Food & Drink Selection</p>
+              
+              <div class="space-y-1.5 border border-[#1f2937] bg-[#1a2332] rounded-xl p-4">
+                <!-- Food Items -->
+                <div v-if="ticket.food_selection && ticket.food_selection !== '[]'" class="space-y-2 mb-4 relative">
+                  <div class="flex items-center gap-2 mb-2 pb-2 border-b border-[#1f2937]/50">
+                    <svg class="w-4 h-4 text-[#0df2f2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span class="text-sm font-bold text-white">Meals</span>
                   </div>
-                  <span v-if="item.price > 0" class="text-xs font-medium text-amber-400">+IDR {{ item.price.toLocaleString('id-ID') }}</span>
-                  <span v-else class="text-xs font-medium text-green-400">Included</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Food Received Status -->
-            <div v-if="ticket.food_selection && ticket.food_selection !== '[]' && ticket.purchase_status === 'paid'">
-              <div class="flex items-center gap-3 p-4 rounded-xl border"
-                :class="ticket.food_received ? 'bg-green-500/10 border-green-500/30' : 'bg-amber-500/10 border-amber-500/30'">
-                <div class="size-10 rounded-full flex items-center justify-center"
-                  :class="ticket.food_received ? 'bg-green-500/20' : 'bg-amber-500/20'">
-                  <svg v-if="ticket.food_received" class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <svg v-else class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-sm font-bold" :class="ticket.food_received ? 'text-green-400' : 'text-amber-400'">
-                    {{ ticket.food_received ? 'Food Received' : 'Food Not Yet Received' }}
-                  </p>
-                  <p class="text-xs mt-0.5" :class="ticket.food_received ? 'text-green-400/60' : 'text-amber-400/60'">
-                    {{ ticket.food_received ? 'Your meal has been collected.' : 'Present your QR code at the food station to collect your meal.' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Drink Selection with Prices -->
-            <div v-if="ticket.drink_selection && ticket.drink_selection !== '[]'" class="space-y-2">
-              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold">Drink Selection</p>
-              <div class="space-y-1.5">
-                <div v-for="item in drinkItemsWithPrices" :key="item.name"
-                  class="flex items-center justify-between bg-[#1a2332] border border-[#1f2937] rounded-lg px-3 py-2">
-                  <div>
-                    <span class="text-sm text-white">{{ item.name }}</span>
-                    <span v-if="item.choice" class="text-xs text-[#94a3b8] ml-1">— {{ item.choice }}</span>
+                  <div v-for="item in foodItemsWithPrices" :key="'food-'+item.name" class="flex items-center justify-between text-sm pl-6">
+                    <div>
+                      <span class="text-slate-300">{{ item.name }}</span>
+                      <span v-if="item.choice" class="text-xs text-[#94a3b8] ml-1">— {{ item.choice }}</span>
+                    </div>
+                    <div>
+                      <span v-if="item.price > 0" class="text-xs font-medium text-amber-400 mr-2">+IDR {{ item.price.toLocaleString('id-ID') }}</span>
+                      <svg v-if="ticket.food_received" class="w-4 h-4 text-green-400 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    </div>
                   </div>
-                  <span v-if="item.price > 0" class="text-xs font-medium text-amber-400">+IDR {{ item.price.toLocaleString('id-ID') }}</span>
-                  <span v-else class="text-xs font-medium text-green-400">Included</span>
+                </div>
+
+                <!-- Drink Items -->
+                <div v-if="ticket.drink_selection && ticket.drink_selection !== '[]'" class="space-y-2">
+                  <div class="flex items-center gap-2 mb-2 pb-2 border-b border-[#1f2937]/50">
+                    <svg class="w-4 h-4 text-[#0df2f2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span class="text-sm font-bold text-white">Beverages</span>
+                  </div>
+                  <div v-for="item in drinkItemsWithPrices" :key="'drink-'+item.name" class="flex items-center justify-between text-sm pl-6">
+                    <div>
+                      <span class="text-slate-300">{{ item.name }}</span>
+                      <span v-if="item.choice" class="text-xs text-[#94a3b8] ml-1">— {{ item.choice }}</span>
+                    </div>
+                    <div>
+                      <span v-if="item.price > 0" class="text-xs font-medium text-amber-400 mr-2">+IDR {{ item.price.toLocaleString('id-ID') }}</span>
+                      <svg v-if="ticket.drink_received" class="w-4 h-4 text-green-400 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Drink Received Status -->
-            <div v-if="ticket.drink_selection && ticket.drink_selection !== '[]' && ticket.purchase_status === 'paid'">
-              <div class="flex items-center gap-3 p-4 rounded-xl border"
-                :class="ticket.drink_received ? 'bg-green-500/10 border-green-500/30' : 'bg-amber-500/10 border-amber-500/30'">
-                <div class="size-10 rounded-full flex items-center justify-center"
-                  :class="ticket.drink_received ? 'bg-green-500/20' : 'bg-amber-500/20'">
-                  <svg v-if="ticket.drink_received" class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  <svg v-else class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-sm font-bold" :class="ticket.drink_received ? 'text-green-400' : 'text-amber-400'">
-                    {{ ticket.drink_received ? 'Drink Received' : 'Drink Not Yet Received' }}
-                  </p>
-                  <p class="text-xs mt-0.5" :class="ticket.drink_received ? 'text-green-400/60' : 'text-amber-400/60'">
-                    {{ ticket.drink_received ? 'Your drink has been collected.' : 'Present your QR code at the drink station to collect your drink.' }}
-                  </p>
+              <!-- Combined Note -->
+              <div v-if="ticket.purchase_status === 'paid'" class="flex items-start gap-3 p-3 rounded-lg border border-[#1f2937] bg-[#0a0e17]">
+                <svg class="w-4 h-4 text-[#0df2f2] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="text-xs text-[#94a3b8]">
+                  <p v-if="!ticket.food_received || !ticket.drink_received">Present your QR code at the designated stations to collect your add-ons.</p>
+                  <p v-else class="text-green-400/80">All add-ons have been successfully collected.</p>
                 </div>
               </div>
             </div>

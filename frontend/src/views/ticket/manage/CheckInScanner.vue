@@ -217,76 +217,75 @@
                     <span class="text-xs text-slate-400 uppercase tracking-wider">Fursuiter</span>
                     <span class="text-sm text-white">{{ verifyResult.ticket?.is_fursuiter ? 'Yes' : 'No' }}</span>
                   </div>
-                  <div v-if="parseFoodSelection(verifyResult.ticket?.food_selection).length" class="py-2">
-                    <span class="text-xs text-slate-400 uppercase tracking-wider block mb-2">Food Selection</span>
+                  <!-- Merged Food & Drink Selection -->
+                  <div v-if="parseFoodSelection(verifyResult.ticket?.food_selection).length || parseDrinkSelection(verifyResult.ticket?.drink_selection).length" class="py-2">
+                    <span class="text-xs text-slate-400 uppercase tracking-wider block mb-2">Meals & Beverage</span>
                     <div class="space-y-1.5">
-                      <div v-for="item in verifyFoodItems" :key="item.name"
+                      <!-- Food Items -->
+                      <div v-for="item in verifyFoodItems" :key="'food-'+item.name"
                         class="rounded-lg bg-slate-800 px-2.5 py-1.5">
                         <div class="flex items-center justify-between">
-                          <span class="text-xs text-slate-200 font-medium">{{ item.name }}</span>
-                          <span v-if="item.menuPrice > 0" class="text-[10px] font-medium text-amber-400">+{{ formatCurrency(item.menuPrice) }}</span>
-                          <span v-else class="text-[10px] font-medium text-green-400">Included</span>
+                          <span class="text-xs text-slate-200 font-medium whitespace-break-spaces break-words line-clamp-2 pr-2">{{ item.name }}</span>
+                          <span v-if="item.menuPrice > 0" class="text-[10px] font-medium text-amber-400 whitespace-nowrap">+{{ formatCurrency(item.menuPrice) }}</span>
+                          <span v-else class="text-[10px] font-medium text-green-400 whitespace-nowrap">Included</span>
                         </div>
                         <div v-if="item.choice" class="flex items-center justify-between mt-0.5 pl-2 border-l-2 border-slate-700">
-                          <span class="text-[10px] text-slate-400">{{ item.choice }}</span>
-                          <span v-if="item.choicePrice > 0" class="text-[10px] text-amber-400">+{{ formatCurrency(item.choicePrice) }}</span>
+                          <span class="text-[10px] text-slate-400 whitespace-break-spaces break-words line-clamp-2 pr-2">{{ item.choice }}</span>
+                          <span v-if="item.choicePrice > 0" class="text-[10px] text-amber-400 whitespace-nowrap">+{{ formatCurrency(item.choicePrice) }}</span>
+                        </div>
+                      </div>
+                      
+                      <!-- Drink Items -->
+                      <div v-for="item in verifyDrinkItems" :key="'drink-'+item.name"
+                        class="rounded-lg bg-slate-800 px-2.5 py-1.5">
+                        <div class="flex items-center justify-between">
+                          <span class="text-xs text-slate-200 font-medium whitespace-break-spaces break-words line-clamp-2 pr-2">{{ item.name }}</span>
+                          <span v-if="item.menuPrice > 0" class="text-[10px] font-medium text-amber-400 whitespace-nowrap">+{{ formatCurrency(item.menuPrice) }}</span>
+                          <span v-else class="text-[10px] font-medium text-green-400 whitespace-nowrap">Included</span>
+                        </div>
+                        <div v-if="item.choice" class="flex items-center justify-between mt-0.5 pl-2 border-l-2 border-slate-700">
+                          <span class="text-[10px] text-slate-400 whitespace-break-spaces break-words line-clamp-2 pr-2">{{ item.choice }}</span>
+                          <span v-if="item.choicePrice > 0" class="text-[10px] text-amber-400 whitespace-nowrap">+{{ formatCurrency(item.choicePrice) }}</span>
                         </div>
                       </div>
                     </div>
-                    <div v-if="verifyResult.ticket?.food_total > 0" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-700">
-                      <span class="text-[10px] text-slate-500 uppercase">Food Add-on</span>
-                      <span class="text-xs font-bold text-amber-400">{{ formatCurrency(verifyResult.ticket.food_total) }}</span>
+
+                    <!-- Totals -->
+                    <div v-if="(verifyResult.ticket?.food_total || 0) + (verifyResult.ticket?.drink_total || 0) > 0" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-700">
+                      <span class="text-[10px] text-slate-500 uppercase">Total Add-on</span>
+                      <span class="text-xs font-bold text-amber-400">{{ formatCurrency((verifyResult.ticket?.food_total || 0) + (verifyResult.ticket?.drink_total || 0)) }}</span>
+                    </div>
+
+                    <!-- Status Badges -->
+                    <div class="flex flex-col sm:flex-row gap-2 mt-2 pt-2 border-t border-slate-700/50">
+                      <!-- Food Status -->
+                      <div v-if="parseFoodSelection(verifyResult.ticket?.food_selection).length" class="flex-1 flex items-center justify-between p-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wider">Food</span>
+                        <div class="flex items-center gap-1.5 border border-slate-600/30 px-1.5 py-0.5 rounded-full" :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-800'">
+                          <span class="size-2 rounded-full" :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'bg-green-400' : 'bg-slate-500'"></span>
+                          <span class="text-[10px] font-medium leading-none" :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'text-green-400' : 'text-slate-400'">
+                            {{ verifyResult.food_received || verifyResult.ticket?.food_received ? 'Received' : 'Pending' }}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <!-- Drink Status -->
+                      <div v-if="parseDrinkSelection(verifyResult.ticket?.drink_selection).length" class="flex-1 flex items-center justify-between p-2 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wider">Drink</span>
+                        <div class="flex items-center gap-1.5 border border-slate-600/30 px-1.5 py-0.5 rounded-full" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-[#0df2f2]/10 border-[#0df2f2]/30' : 'bg-slate-800'">
+                          <span class="size-2 rounded-full" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-[#0df2f2]' : 'bg-slate-500'"></span>
+                          <span class="text-[10px] font-medium leading-none" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'text-[#0df2f2]' : 'text-slate-400'">
+                            {{ verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'Received' : 'Pending' }}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <!-- Food notes -->
+                  <!-- Food notes moved below drinks -->
                   <div v-if="verifyResult.ticket?.food_notes" class="py-2 border-t border-slate-800">
                     <span class="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Food Notes</span>
-                    <p class="text-xs text-slate-300 bg-slate-800 rounded-lg px-2.5 py-2 italic">{{ verifyResult.ticket.food_notes }}</p>
-                  </div>
-
-                  <!-- Food received status -->
-                  <div v-if="parseFoodSelection(verifyResult.ticket?.food_selection).length" class="py-2 border-t border-slate-800">
-                    <div class="flex items-center gap-3 p-2.5 rounded-lg"
-                      :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'bg-green-500/10 border border-green-500/30' : 'bg-slate-800'">
-                      <span class="size-2.5 rounded-full" :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'bg-green-400' : 'bg-slate-600'"></span>
-                      <span class="text-xs font-medium" :class="verifyResult.food_received || verifyResult.ticket?.food_received ? 'text-green-400' : 'text-slate-400'">
-                        {{ verifyResult.food_received || verifyResult.ticket?.food_received ? 'Food Already Received' : 'Food Not Yet Received' }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Drink Selection -->
-                  <div v-if="parseDrinkSelection(verifyResult.ticket?.drink_selection).length" class="py-2 border-t border-slate-800">
-                    <span class="text-xs text-slate-400 uppercase tracking-wider block mb-2">Drink Selection</span>
-                    <div class="space-y-1.5">
-                      <div v-for="item in verifyDrinkItems" :key="item.name"
-                        class="rounded-lg bg-slate-800 px-2.5 py-1.5">
-                        <div class="flex items-center justify-between">
-                          <span class="text-xs text-slate-200 font-medium">{{ item.name }}</span>
-                          <span v-if="item.menuPrice > 0" class="text-[10px] font-medium text-amber-400">+{{ formatCurrency(item.menuPrice) }}</span>
-                          <span v-else class="text-[10px] font-medium text-green-400">Included</span>
-                        </div>
-                        <div v-if="item.choice" class="flex items-center justify-between mt-0.5 pl-2 border-l-2 border-slate-700">
-                          <span class="text-[10px] text-slate-400">{{ item.choice }}</span>
-                          <span v-if="item.choicePrice > 0" class="text-[10px] text-amber-400">+{{ formatCurrency(item.choicePrice) }}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div v-if="verifyResult.ticket?.drink_total > 0" class="flex items-center justify-between mt-2 pt-2 border-t border-slate-700">
-                      <span class="text-[10px] text-slate-500 uppercase">Drink Add-on</span>
-                      <span class="text-xs font-bold text-amber-400">{{ formatCurrency(verifyResult.ticket.drink_total) }}</span>
-                    </div>
-                    <!-- Drink received status -->
-                    <div class="mt-2">
-                      <div class="flex items-center gap-3 p-2.5 rounded-lg"
-                        :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-green-500/10 border border-green-500/30' : 'bg-slate-800'">
-                        <span class="size-2.5 rounded-full" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'bg-green-400' : 'bg-slate-600'"></span>
-                        <span class="text-xs font-medium" :class="verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'text-green-400' : 'text-slate-400'">
-                          {{ verifyResult.drink_received || verifyResult.ticket?.drink_received ? 'Drink Already Received' : 'Drink Not Yet Received' }}
-                        </span>
-                      </div>
-                    </div>
+                    <p class="text-xs text-slate-300 bg-slate-800 rounded-lg px-2.5 py-2 italic whitespace-pre-wrap">{{ verifyResult.ticket.food_notes }}</p>
                   </div>
                 </div>
 

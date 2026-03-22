@@ -257,6 +257,11 @@
             </label>
           </div>
           <div v-if="form.drinks_enabled" class="p-6 space-y-4">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="form.drinks_multi_select" class="rounded border-slate-700 bg-slate-900 text-[#0df2f2] focus:ring-[#0df2f2]" />
+              <span class="text-sm text-slate-300">Allow multiple selections</span>
+            </label>
+
             <!-- Drink options list -->
             <div class="space-y-4">
               <div v-for="(opt, idx) in drinkOptions" :key="idx" class="bg-slate-900 rounded-lg ring-1 ring-slate-700 overflow-hidden">
@@ -551,6 +556,7 @@ const form = reactive({
   food_enabled: false,
   food_multi_select: false,
   drinks_enabled: false,
+  drinks_multi_select: false,
   sales_status: 'available',
   sales_open_time: '',
   sales_close_time: '',
@@ -630,6 +636,7 @@ function populateForm(ev) {
   form.food_enabled = !!ev.food_enabled
   form.food_multi_select = !!ev.food_multi_select
   form.drinks_enabled = !!ev.drinks_enabled
+  form.drinks_multi_select = !!ev.drinks_multi_select
   form.sales_status = ev.sales_status || 'available'
   form.sales_open_time = ev.sales_open_time ? toLocalDatetime(ev.sales_open_time) : ''
   form.sales_close_time = ev.sales_close_time ? toLocalDatetime(ev.sales_close_time) : ''
@@ -731,6 +738,7 @@ async function saveEvent() {
     fd.append('food_enabled', form.food_enabled ? '1' : '0')
     fd.append('food_multi_select', form.food_multi_select ? '1' : '0')
     fd.append('drinks_enabled', form.drinks_enabled ? '1' : '0')
+    fd.append('drinks_multi_select', form.drinks_multi_select ? '1' : '0')
     fd.append('sales_status', form.sales_status)
     if (form.sales_open_time) fd.append('sales_open_time', new Date(form.sales_open_time).toISOString())
     else fd.append('sales_open_time', '')
