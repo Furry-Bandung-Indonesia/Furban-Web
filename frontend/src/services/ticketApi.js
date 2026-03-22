@@ -319,6 +319,14 @@ class TicketApiService {
     })
   }
 
+  /** Mark drink as received/not received for a ticket */
+  async markDrinkReceived(eventId, body) {
+    return this.request(`/api/manage/${eventId}/checkin/drink-received`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
   // ═══════════════════════════════════════════════════
   // ADMIN / HOST — Moderation v3
   // Tab 1: Keyword List  |  Tab 2: Account Suspects  |  Tab 3: Attempt Logs

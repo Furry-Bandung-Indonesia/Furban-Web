@@ -160,7 +160,11 @@
                   <span class="text-[#94a3b8] text-sm">Meal Add-on</span>
                   <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(foodAddOnTotal) }}</span>
                 </div>
-                <div v-if="foodAddOnTotal > 0 || ticket.bid_price" class="flex justify-between items-center border-t border-[#334155] pt-3">
+                <div v-if="drinkAddOnTotal > 0" class="flex justify-between items-center border-t border-[#334155] pt-3">
+                  <span class="text-[#94a3b8] text-sm">Drink Add-on</span>
+                  <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(drinkAddOnTotal) }}</span>
+                </div>
+                <div v-if="foodAddOnTotal > 0 || drinkAddOnTotal > 0 || ticket.bid_price" class="flex justify-between items-center border-t border-[#334155] pt-3">
                   <span class="text-white text-sm font-bold">Total</span>
                   <span class="text-[#0df2f2] text-sm font-bold">{{ formatPrice(computedTotal) }}</span>
                 </div>
@@ -399,6 +403,61 @@
                   </div>
                 </div>
 
+                <!-- Drink Selection -->
+                <div v-if="drinksEnabled && drinkOptions.length > 0" class="flex flex-col gap-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-white text-sm font-semibold tracking-wide">Drink Preference</span>
+                    <span class="text-[#94a3b8] text-xs">Select all that apply</span>
+                  </div>
+                  <div class="flex flex-col gap-3">
+                    <div v-for="option in drinkOptions" :key="option.name"
+                      class="rounded-xl border transition-all overflow-hidden"
+                      :class="isDrinkSelected(option.name) ? 'border-[#0df2f2] bg-[#0df2f2]/5' : 'border-[#334155] bg-[#1e293b] hover:border-[#475569]'">
+                      <!-- Drink item header -->
+                      <label class="flex items-center gap-3 px-4 py-3 cursor-pointer">
+                        <div class="relative flex items-center" @click.prevent="toggleDrinkItem(option.name)">
+                          <div class="w-5 h-5 border-2 rounded flex items-center justify-center transition-all"
+                            :class="isDrinkSelected(option.name) ? 'border-[#0df2f2] bg-[#0df2f2]' : 'border-[#64748b] bg-transparent'">
+                            <svg v-if="isDrinkSelected(option.name)" class="w-3 h-3 text-[#020617]" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div class="flex flex-1 items-center justify-between">
+                          <span class="text-white text-sm font-medium">{{ option.name }}</span>
+                          <span class="text-xs font-medium" :class="option.price > 0 ? 'text-amber-400' : 'text-green-400'">
+                            {{ option.price > 0 ? '+' + formatPrice(option.price) : 'Included' }}
+                          </span>
+                        </div>
+                      </label>
+                      <!-- Choices — shown when selected and choices exist -->
+                      <div v-if="isDrinkSelected(option.name) && option.choices?.length" class="border-t border-[#334155] px-4 py-3 bg-[#0f172a]/50 space-y-1.5">
+                        <p class="text-[10px] uppercase tracking-wider text-[#94a3b8] font-semibold mb-2">Choose variant</p>
+                        <label v-for="ch in option.choices" :key="ch.name"
+                          class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all"
+                          :class="getDrinkSelectedChoice(option.name) === ch.name ? 'bg-[#0df2f2]/10 ring-1 ring-[#0df2f2]/30' : 'hover:bg-[#1e293b]'"
+                          @click.prevent="setDrinkChoice(option.name, ch.name, ch.price)">
+                          <div class="w-4 h-4 border-2 rounded-full flex items-center justify-center transition-all shrink-0"
+                            :class="getDrinkSelectedChoice(option.name) === ch.name ? 'border-[#0df2f2]' : 'border-[#475569]'">
+                            <div v-if="getDrinkSelectedChoice(option.name) === ch.name" class="w-2 h-2 rounded-full bg-[#0df2f2]"></div>
+                          </div>
+                          <div class="flex flex-1 items-center justify-between">
+                            <span class="text-sm text-white">{{ ch.name }}</span>
+                            <span class="text-[11px] font-medium" :class="ch.price > 0 ? 'text-amber-400' : 'text-green-400'">
+                              {{ ch.price > 0 ? '+' + formatPrice(ch.price) : 'Included' }}
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Drink add-on subtotal -->
+                  <div v-if="drinkAddOnTotal > 0" class="flex justify-between items-center bg-[#0f172a] rounded-lg px-4 py-2 border border-[#334155]">
+                    <span class="text-[#94a3b8] text-xs">Drink add-on</span>
+                    <span class="text-amber-400 text-sm font-bold">+{{ formatPrice(drinkAddOnTotal) }}</span>
+                  </div>
+                </div>
+
                 <!-- TOS Agreement -->
                 <div class="mt-2">
                   <label class="flex items-start gap-3 cursor-pointer group">
@@ -512,6 +571,7 @@ const form = ref({
   is_fursuiter: false,
   food_selection: [],   // [{name, choice?, choice_price?}]
   food_notes: '',
+  drink_selection: [],  // [{name, choice?, choice_price?}]
 })
 
 // Check if a menu item is selected
@@ -594,15 +654,72 @@ const foodAddOnTotal = computed(() => {
   }, 0)
 })
 
-// Name Your Price: total = max(bid_price, tier_price + food_total)
+// ─── Drink helpers ───
+
+function isDrinkSelected(name) {
+  return form.value.drink_selection.some(s => s.name === name)
+}
+
+function getDrinkSelectedChoice(name) {
+  const sel = form.value.drink_selection.find(s => s.name === name)
+  return sel?.choice || null
+}
+
+function toggleDrinkItem(name) {
+  const idx = form.value.drink_selection.findIndex(s => s.name === name)
+  if (idx >= 0) {
+    form.value.drink_selection.splice(idx, 1)
+  } else {
+    form.value.drink_selection.push({ name })
+  }
+}
+
+function setDrinkChoice(menuName, choiceName, choicePrice) {
+  const sel = form.value.drink_selection.find(s => s.name === menuName)
+  if (sel) {
+    sel.choice = choiceName
+    sel.choice_price = choicePrice || 0
+  }
+}
+
+const drinksEnabled = computed(() => {
+  const de = event.value?.drinks_enabled
+  return de === 1 || de === true || de === '1'
+})
+
+const drinkOptions = computed(() => {
+  const opts = event.value?.drink_options
+  if (!opts) return []
+  const arr = Array.isArray(opts) ? opts : (() => { try { return JSON.parse(opts) } catch { return [] } })()
+  return arr.map(item => {
+    if (typeof item === 'string') return { name: item, price: 0, choices: [] }
+    return {
+      name: item.name || '',
+      price: Number(item.price) || 0,
+      choices: Array.isArray(item.choices) ? item.choices.map(c => ({ name: c.name || '', price: Number(c.price) || 0 })) : [],
+    }
+  })
+})
+
+const drinkAddOnTotal = computed(() => {
+  return form.value.drink_selection.reduce((sum, sel) => {
+    const opt = drinkOptions.value.find(o => o.name === sel.name)
+    const menuPrice = opt?.price || 0
+    const choicePrice = sel.choice_price || 0
+    return sum + menuPrice + choicePrice
+  }, 0)
+})
+
+// Name Your Price: total = max(bid_price, tier_price + food_total + drink_total)
 const computedTotal = computed(() => {
   const tierPrice = ticket.value?.tier_price || ticket.value?.price_total || 0
   const food = foodAddOnTotal.value
+  const drinks = drinkAddOnTotal.value
   const bid = ticket.value?.bid_price
   if (bid) {
-    return Math.max(bid, tierPrice + food)
+    return Math.max(bid, tierPrice + food + drinks)
   }
-  return tierPrice + food
+  return tierPrice + food + drinks
 })
 
 const firstNameNeedsChange = computed(() => {
@@ -681,6 +798,10 @@ async function handleSubmit() {
     if (form.value.food_notes?.trim()) {
       body.food_notes = form.value.food_notes.trim()
     }
+    // Only include drink_selection if drinks is enabled
+    if (drinksEnabled.value && form.value.drink_selection.length > 0) {
+      body.drink_selection = form.value.drink_selection
+    }
     // Include bid_price for Name Your Price tiers
     if (ticket.value?.name_your_price && bidPrice.value) {
       body.bid_price = bidPrice.value
@@ -753,7 +874,22 @@ onMounted(async () => {
       form.value.food_notes = ticketData.food_notes
     }
 
-    // Load full event data for food options and TOS
+    // Parse existing drink selection
+    if (ticketData.drink_selection) {
+      try {
+        const parsed = typeof ticketData.drink_selection === 'string'
+          ? JSON.parse(ticketData.drink_selection)
+          : ticketData.drink_selection
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          form.value.drink_selection = parsed.map(item => {
+            if (typeof item === 'string') return { name: item }
+            return { name: item.name || '', choice: item.choice || undefined, choice_price: item.choice_price || 0 }
+          })
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Load full event data for food/drink options and TOS
     try {
       const eventData = await ticketApi.getEvent(ticketData.event_uuid)
       event.value = eventData
