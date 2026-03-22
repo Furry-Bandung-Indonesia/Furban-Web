@@ -741,9 +741,13 @@ const computedTotal = computed(() => {
   const tierPrice = ticket.value?.tier_price || ticket.value?.price_total || 0
   const food = foodAddOnTotal.value
   const drinks = drinkAddOnTotal.value
-    const bid = bidPrice.value || ticket.value?.bid_price
+  const bid = bidPrice.value || ticket.value?.bid_price || 0
+  
+  if (ticket.value?.name_your_price) {
+    return Math.max(bid, tierPrice + food + drinks)
+  }
+  return tierPrice + food + drinks
 })
-
 const firstNameNeedsChange = computed(() => {
   return (form.value.first_name || '').trim().toLowerCase() === 'attendee'
 })
