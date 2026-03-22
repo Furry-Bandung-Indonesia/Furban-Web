@@ -204,8 +204,8 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       `INSERT INTO events
        (event_uuid, creator_uuid, event_name, description, banner_filename, tos_text,
         location_lat, location_long, location_name, start_time, end_time,
-        food_enabled, food_multi_select, food_options, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        food_enabled, food_multi_select, food_options, drinks_enabled, drink_options, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       uuid,
       user.sub,
@@ -221,6 +221,8 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       body.food_enabled === '0' || body.food_enabled === false ? 0 : (body.food_enabled ? 1 : 0),
       body.food_multi_select === '0' || body.food_multi_select === false ? 0 : (body.food_multi_select ? 1 : 0),
       body.food_options || '[]',
+      body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : (body.drinks_enabled ? 1 : 0),
+      body.drink_options || '[]',
       body.status || 'draft',
       now,
       now,
@@ -275,11 +277,11 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     const updates: string[] = []
     const values: any[] = []
 
-    const stringFields = ['event_name', 'description', 'tos_text', 'location_name', 'start_time', 'end_time', 'food_options', 'status', 'sales_status']
+    const stringFields = ['event_name', 'description', 'tos_text', 'location_name', 'start_time', 'end_time', 'food_options', 'drink_options', 'status', 'sales_status']
     for (const f of stringFields) {
       if (body[f] !== undefined) {
         updates.push(`${f} = ?`)
-        values.push(body[f])
+        values.push(body[f] || (f.endsWith('_options') ? '[]' : null))
       }
     }
 
@@ -297,6 +299,8 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     if (body.location_long !== undefined) { updates.push('location_long = ?'); values.push(parseFloat(body.location_long)) }
     if (body.food_enabled !== undefined) { updates.push('food_enabled = ?'); values.push(body.food_enabled === '0' || body.food_enabled === false ? 0 : 1) }
     if (body.food_multi_select !== undefined) { updates.push('food_multi_select = ?'); values.push(body.food_multi_select === '0' || body.food_multi_select === false ? 0 : 1) }
+    
+    if (body.drinks_enabled !== undefined) { updates.push('drinks_enabled = ?'); values.push(body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : 1) }
 
     // Handle banner upload
     if (bannerFile && bannerFile.size > 0) {

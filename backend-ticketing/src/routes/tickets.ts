@@ -94,7 +94,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
   const eventId = c.req.param('eventId')
   const body = await c.req.json()
 
-  const { tier_uuid, first_name, last_name, nickname, date_of_birth, phone_number, is_fursuiter, food_selection, food_notes, turnstile_token } = body
+  const { tier_uuid, first_name, last_name, nickname, date_of_birth, phone_number, is_fursuiter, food_selection, drink_selection, food_notes, turnstile_token } = body
 
   // ─── Validate input ──────────────────────────────
   if (!tier_uuid || !first_name) {
@@ -277,6 +277,8 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
   // ─── Validate food selection ─────────────────────
   let foodSelNorm: FoodSelectionItem[] = []
   let foodTotal = 0
+  let drinkSelNorm: FoodSelectionItem[] = []
+  let drinkTotal = 0
   if (event.food_enabled && food_selection) {
     foodSelNorm = normalizeFoodSelection(food_selection)
     const foodOpts = parseFoodOptions(event.food_options || '[]')
@@ -302,6 +304,30 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     foodTotal = calculateFoodTotal(foodSelNorm, foodOpts)
   }
 
+  // ─── Validate drink selection ────────────────────
+  if (event.drinks_enabled && drink_selection) {
+    drinkSelNorm = normalizeFoodSelection(drink_selection)
+    // We can parse drinks same as food with parseFoodOptions
+    const drinkOpts = parseFoodOptions(event.drink_options || '[]')
+    const validNames = drinkOpts.map(o => o.name)
+    const invalidOptions = drinkSelNorm.filter(f => !validNames.includes(f.name))
+    if (invalidOptions.length > 0) {
+      return c.json({ message: `Invalid drink option(s): ${invalidOptions.map(f => f.name).join(', ')}` }, 400)
+    }
+    // Validate choices
+    for (const sel of drinkSelNorm) {
+      const opt = drinkOpts.find(o => o.name === sel.name)
+      if (sel.choice && opt?.choices?.length) {
+        const validChoice = opt.choices.find(ch => ch.name === sel.choice)
+        if (!validChoice) {
+          return c.json({ message: `Invalid choice "${sel.choice}" for "${sel.name}"` }, 400)
+        }
+        sel.choice_price = validChoice.price || 0
+      }
+    }
+    drinkTotal = calculateFoodTotal(drinkSelNorm, drinkOpts)
+  }
+
   // ─── Create ticket + hold ────────────────────────
   const ticketUuid = crypto.randomUUID()
   // NOTE: ticket_number is NOT assigned here — it is issued only upon successful payment
@@ -316,7 +342,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
 
   // ─── Name Your Price: validate and compute total ──
   let bidPrice: number | null = null
-  let totalAmount = tier.price_total + foodTotal
+  let totalAmount = tier.price_total + foodTotal + drinkTotal
 
   if ((tier as any).name_your_price) {
     if (body.bid_price) {
@@ -325,8 +351,8 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
         return c.json({ message: `bid_price must be at least ${tier.price_total}` }, 400)
       }
       bidPrice = rawBid
-      // Formula: final = max(bid_price, tier_price + food_total)
-      totalAmount = Math.max(bidPrice, tier.price_total + foodTotal)
+      // Formula: final = max(bid_price, tier_price + food_total + drink_total)
+      totalAmount = Math.max(bidPrice, tier.price_total + foodTotal + drinkTotal)
     }
     // If no bid_price provided, it will be set on the fill page
   }
@@ -336,14 +362,14 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     `INSERT INTO tickets
      (ticket_uuid, event_uuid, tier_uuid, user_uuid, ticket_number,
       first_name, last_name, nickname, date_of_birth, phone_number,
-      is_fursuiter, food_selection, food_total, bid_price, food_notes,
+      is_fursuiter, food_selection, food_total, drink_selection, drink_total, bid_price, food_notes,
       purchase_status, claim_expiry, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
+     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
   ).bind(
     ticketUuid, eventId, tier_uuid, user.sub,
     first_name, last_name || null, nickname || null,
     date_of_birth || null, phone_number || null,
-    is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal,
+    is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal, JSON.stringify(drinkSelNorm), drinkTotal,
     bidPrice,
     food_notes?.trim() || null,
     claimExpiry, now, now,
@@ -485,6 +511,35 @@ tickets.put('/tickets/:ticketId', async (c) => {
       updates.push('food_total = ?'); values.push(newFoodTotal)
     }
   }
+  if (body.drink_selection !== undefined) {
+    const event = await c.env.DB.prepare(
+      'SELECT drinks_enabled, drink_options FROM events WHERE event_uuid = ?'
+    ).bind(ticket.event_uuid).first() as any | null
+
+    if (event?.drinks_enabled) {
+      const drinkSelNorm = normalizeFoodSelection(body.drink_selection)
+      const drinkOpts = parseFoodOptions(event.drink_options || '[]')
+      const validNames = drinkOpts.map(o => o.name)
+      const invalidOptions = drinkSelNorm.filter(f => !validNames.includes(f.name))
+      if (invalidOptions.length > 0) {
+        return c.json({ message: `Invalid drink option(s): ${invalidOptions.map(f => f.name).join(', ')}` }, 400)
+      }
+      for (const sel of drinkSelNorm) {
+        const opt = drinkOpts.find(o => o.name === sel.name)
+        if (sel.choice && opt?.choices?.length) {
+          const validChoice = opt.choices.find(ch => ch.name === sel.choice)
+          if (!validChoice) {
+            return c.json({ message: `Invalid choice "${sel.choice}" for "${sel.name}"` }, 400)
+          }
+          sel.choice_price = validChoice.price || 0
+        }
+      }
+      const newDrinkTotal = calculateFoodTotal(drinkSelNorm, drinkOpts)
+      updates.push('drink_selection = ?'); values.push(JSON.stringify(drinkSelNorm))
+      updates.push('drink_total = ?'); values.push(newDrinkTotal)
+    }
+  }
+
   if (body.food_notes !== undefined) {
     updates.push('food_notes = ?'); values.push(body.food_notes?.trim() || null)
   }
@@ -500,21 +555,22 @@ tickets.put('/tickets/:ticketId', async (c) => {
     `UPDATE tickets SET ${updates.join(', ')} WHERE ticket_uuid = ? AND user_uuid = ?`
   ).bind(...values).run()
 
-  // If food or bid_price changed, update purchase_log amount to reflect new total
-  if (body.food_selection !== undefined || body.bid_price !== undefined) {
+  // If food, drink, or bid_price changed, update purchase_log amount to reflect new total
+  if (body.food_selection !== undefined || body.drink_selection !== undefined || body.bid_price !== undefined) {
     const tier = await c.env.DB.prepare(
       'SELECT price_total FROM ticket_tiers WHERE tier_uuid = ?'
     ).bind(ticket.tier_uuid).first() as { price_total: number } | null
 
     const updatedTicket = await c.env.DB.prepare(
-      'SELECT food_total, bid_price FROM tickets WHERE ticket_uuid = ?'
-    ).bind(ticketId).first() as { food_total: number; bid_price: number | null } | null
+      'SELECT food_total, drink_total, bid_price FROM tickets WHERE ticket_uuid = ?'
+    ).bind(ticketId).first() as { food_total: number; drink_total: number; bid_price: number | null } | null
 
     const tierPrice = tier?.price_total || 0
     const foodTotal = updatedTicket?.food_total || 0
+    const drinkTotal = updatedTicket?.drink_total || 0
     const bidPrice = updatedTicket?.bid_price
-    // Name Your Price: max(bid_price, tier_price + food_total)
-    const newAmount = bidPrice ? Math.max(bidPrice, tierPrice + foodTotal) : (tierPrice + foodTotal)
+    // Name Your Price: max(bid_price, tier_price + food_total + drink_total)
+    const newAmount = bidPrice ? Math.max(bidPrice, tierPrice + foodTotal + drinkTotal) : (tierPrice + foodTotal + drinkTotal)
     await c.env.DB.prepare(
       `UPDATE purchase_log SET amount_paid = ?, updated_at = ? WHERE ticket_uuid = ? AND user_uuid = ?`
     ).bind(newAmount, new Date().toISOString(), ticketId, user.sub).run()

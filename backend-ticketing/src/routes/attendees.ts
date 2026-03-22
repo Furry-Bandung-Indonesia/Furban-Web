@@ -149,7 +149,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
 
     const { results } = await c.env.DB.prepare(`
       SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
-             t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total,
+             t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
              t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
       FROM tickets t
       JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
@@ -198,7 +198,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
 
   const { results } = await c.env.DB.prepare(`
     SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
-           t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total,
+           t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
            t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
     FROM tickets t
     JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
@@ -355,7 +355,9 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
       tier_name: ticket.tier_name,
       food_selection: ticket.food_selection,
       food_total: ticket.food_total,
-      price_total: (ticket.tier_price || 0) + (ticket.food_total || 0),
+      drink_selection: ticket.drink_selection,
+      drink_total: ticket.drink_total,
+      price_total: (ticket.tier_price || 0) + (ticket.food_total || 0) + (ticket.drink_total || 0),
       transferred_at: now,
       sender: senderProfile ? {
         uuid: senderProfile.uuid,
@@ -435,11 +437,11 @@ attendees.put('/:eventId/attendees/:ticketId', eventPermission('eventId'), async
 
   // Data immutability: cannot edit first_name/last_name/nickname after payment
   if (ticket.purchase_status === 'paid') {
-    const mutableFields = ['food_selection', 'is_fursuiter']
+    const mutableFields = ['food_selection', 'drink_selection', 'is_fursuiter']
     const immutableAttempts = Object.keys(body).filter(k => !mutableFields.includes(k))
     if (immutableAttempts.length > 0) {
       return c.json({
-        message: `Cannot modify ${immutableAttempts.join(', ')} after payment. Only food_selection and is_fursuiter can be updated.`,
+        message: `Cannot modify ${immutableAttempts.join(', ')} after payment. Only food_selection, drink_selection, and is_fursuiter can be updated.`,
       }, 400)
     }
   }
@@ -454,6 +456,10 @@ attendees.put('/:eventId/attendees/:ticketId', eventPermission('eventId'), async
   if (body.food_selection !== undefined) {
     updates.push('food_selection = ?')
     values.push(JSON.stringify(Array.isArray(body.food_selection) ? body.food_selection : [body.food_selection]))
+  }
+  if (body.drink_selection !== undefined) {
+    updates.push('drink_selection = ?')
+    values.push(JSON.stringify(Array.isArray(body.drink_selection) ? body.drink_selection : [body.drink_selection]))
   }
 
   if (updates.length === 0) return c.json({ message: 'No fields to update' }, 400)
@@ -580,18 +586,21 @@ attendees.post('/:eventId/checkin/verify', eventPermission('eventId'), async (c)
     valid: true,
     already_redeemed: ticket.is_redeemed === 1,
     food_received: ticket.food_received === 1,
+    drink_received: ticket.drink_received === 1,
     moderation: moderationInfo,
     ticket: {
       ...ticket,
       tier_name: tier?.tier_name || 'Unknown',
       tier_price: tier?.tier_price || 0,
       price_total: (ticket as any).bid_price
-        ? Math.max((ticket as any).bid_price, (tier?.tier_price || 0) + (ticket.food_total || 0))
-        : (tier?.tier_price || 0) + (ticket.food_total || 0),
+        ? Math.max((ticket as any).bid_price, (tier?.tier_price || 0) + (ticket.food_total || 0) + (ticket.drink_total || 0))
+        : (tier?.tier_price || 0) + (ticket.food_total || 0) + (ticket.drink_total || 0),
       bid_price: (ticket as any).bid_price || null,
       food_selection: JSON.parse(ticket.food_selection || '[]'),
+      drink_selection: JSON.parse(ticket.drink_selection || '[]'),
       food_notes: ticket.food_notes || null,
       event_food_options: event?.food_options || '[]',
+      event_drink_options: event?.drink_options || '[]',
     },
   })
 })
@@ -607,7 +616,7 @@ attendees.post('/:eventId/checkin/redeem', eventPermission('eventId'), async (c)
   const eventId = c.req.param('eventId')
   const user = c.get('user') as JWTPayload
   const body = await c.req.json()
-  const { ticket_uuid, food_received } = body
+  const { ticket_uuid, food_received, drink_received } = body
 
   if (!ticket_uuid) return c.json({ message: 'ticket_uuid is required' }, 400)
 
@@ -637,6 +646,11 @@ attendees.post('/:eventId/checkin/redeem', eventPermission('eventId'), async (c)
 
   if (food_received) {
     updateSql += `, food_received = 1, food_received_at = ?, food_received_by = ?`
+    updateParams.push(now, user.sub)
+  }
+
+  if (drink_received) {
+    updateSql += `, drink_received = 1, drink_received_at = ?, drink_received_by = ?`
     updateParams.push(now, user.sub)
   }
 
@@ -686,7 +700,8 @@ attendees.post('/:eventId/checkin/unredeem', eventPermission('eventId'), async (
 
   await c.env.DB.prepare(
     `UPDATE tickets SET is_redeemed = 0, redeemed_at = NULL, redeemed_by = NULL,
-     food_received = 0, food_received_at = NULL, food_received_by = NULL, updated_at = ?
+     food_received = 0, food_received_at = NULL, food_received_by = NULL,
+     drink_received = 0, drink_received_at = NULL, drink_received_by = NULL, updated_at = ?
      WHERE ticket_uuid = ?`
   ).bind(new Date().toISOString(), ticket_uuid).run()
 
@@ -859,6 +874,56 @@ attendees.post('/:eventId/checkin/food-received', eventPermission('eventId'), as
     message: 'Food marked as received',
     food_received: true,
     food_received_at: now,
+  })
+})
+
+/**
+ * POST /manage/:eventId/checkin/drink-received
+ * Mark drink as received for a checked-in ticket.
+ * Can be called independently of check-in (e.g. drink station scan).
+ *
+ * Body: { ticket_uuid, received }
+ *   received: true = mark received, false = unmark
+ */
+attendees.post('/:eventId/checkin/drink-received', eventPermission('eventId'), async (c) => {
+  const eventId = c.req.param('eventId')
+  const user = c.get('user') as JWTPayload
+  const body = await c.req.json()
+  const { ticket_uuid, received } = body
+
+  if (!ticket_uuid) return c.json({ message: 'ticket_uuid is required' }, 400)
+
+  const ticket = await c.env.DB.prepare(
+    'SELECT * FROM tickets WHERE ticket_uuid = ? AND event_uuid = ?'
+  ).bind(ticket_uuid, eventId).first() as TicketRow | null
+
+  if (!ticket) return c.json({ message: 'Ticket not found' }, 404)
+
+  if (ticket.purchase_status !== 'paid') {
+    return c.json({ message: 'Ticket is not paid' }, 400)
+  }
+
+  const now = new Date().toISOString()
+
+  if (received === false) {
+    // Unmark drink received
+    await c.env.DB.prepare(
+      `UPDATE tickets SET drink_received = 0, drink_received_at = NULL, drink_received_by = NULL, updated_at = ?
+       WHERE ticket_uuid = ?`
+    ).bind(now, ticket_uuid).run()
+    return c.json({ message: 'Drink marked as not received', drink_received: false })
+  }
+
+  // Mark drink as received
+  await c.env.DB.prepare(
+    `UPDATE tickets SET drink_received = 1, drink_received_at = ?, drink_received_by = ?, updated_at = ?
+     WHERE ticket_uuid = ?`
+  ).bind(now, user.sub, now, ticket_uuid).run()
+
+  return c.json({
+    message: 'Drink marked as received',
+    drink_received: true,
+    drink_received_at: now,
   })
 })
 

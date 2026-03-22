@@ -48,6 +48,8 @@ export interface EventRow {
   food_enabled: number
   food_multi_select: number
   food_options: string
+  drinks_enabled: number
+  drink_options: string
   status: 'draft' | 'published' | 'closed'
   sales_status: 'available' | 'sold_out' | 'coming_soon' | 'unavailable'
   sales_open_time: string | null
@@ -89,6 +91,11 @@ export interface TicketRow {
   food_received: number
   food_received_at: string | null
   food_received_by: string | null
+  drink_selection: string
+  drink_total: number
+  drink_received: number
+  drink_received_at: string | null
+  drink_received_by: string | null
   purchase_status: 'under_payment' | 'paid' | 'expired' | 'failed' | 'revoked'
   claim_expiry: string | null
   is_redeemed: number
