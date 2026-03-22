@@ -142,7 +142,7 @@
                 <span class="text-amber-400">+IDR {{ ticket.food_total.toLocaleString('id-ID') }}</span>
               </div>
               <div v-if="ticket.drink_total > 0" class="flex justify-between text-sm">
-                <span class="text-[#94a3b8]">Drink Add-on</span>
+                <span class="text-[#94a3b8]">Beverages Add-on</span>
                 <span class="text-amber-400">+IDR {{ ticket.drink_total.toLocaleString('id-ID') }}</span>
               </div>
               <div class="flex justify-between text-sm pt-2 border-t border-[#1f2937] font-bold">
@@ -153,7 +153,7 @@
 
             <!-- Merged Food & Drink Selection -->
             <div v-if="(ticket.food_selection && ticket.food_selection !== '[]') || (ticket.drink_selection && ticket.drink_selection !== '[]')" class="space-y-4">
-              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold -mb-2">Food & Drink Selection</p>
+              <p class="text-[#94a3b8] text-xs uppercase tracking-wider font-bold -mb-2">Food & Beverages Selection</p>
               
               <div class="space-y-1.5 border border-[#1f2937] bg-[#1a2332] rounded-xl p-4">
                 <!-- Food Items -->
@@ -292,12 +292,17 @@ export default {
           // Support both old format (plain string) and new format (object with name/choice/choice_price)
           if (typeof item === 'string') {
             const opt = eventOptions.find(o => o.name === item)
-            return { name: item, choice: null, price: opt?.price || 0 }
+            return { name: item, choice: null, price: Number(opt?.price) || 0 }
           }
           // New format: { name, choice, choice_price }
           const opt = eventOptions.find(o => o.name === item.name)
-          const basePrice = opt?.price || 0
-          const choicePrice = item.choice_price || 0
+          const basePrice = Number(opt?.price) || 0
+          let choicePrice = Number(item.choice_price) || 0
+          // Fallback if choice_price was lost
+          if (!choicePrice && item.choice && opt?.choices?.length) {
+            const validChoice = opt.choices.find(c => c.name === item.choice)
+            if (validChoice) choicePrice = Number(validChoice.price) || 0
+          }
           return {
             name: item.name,
             choice: item.choice || null,
@@ -316,11 +321,16 @@ export default {
         return selection.map(item => {
           if (typeof item === 'string') {
             const opt = eventOptions.find(o => o.name === item)
-            return { name: item, choice: null, price: opt?.price || 0 }
+            return { name: item, choice: null, price: Number(opt?.price) || 0 }
           }
           const opt = eventOptions.find(o => o.name === item.name)
-          const basePrice = opt?.price || 0
-          const choicePrice = item.choice_price || 0
+          const basePrice = Number(opt?.price) || 0
+          let choicePrice = Number(item.choice_price) || 0
+          // Fallback if choice_price wasn't properly embedded in selection
+          if (!choicePrice && item.choice && opt?.choices?.length) {
+            const validChoice = opt.choices.find(c => c.name === item.choice)
+            if (validChoice) choicePrice = Number(validChoice.price) || 0
+          }
           return {
             name: item.name,
             choice: item.choice || null,

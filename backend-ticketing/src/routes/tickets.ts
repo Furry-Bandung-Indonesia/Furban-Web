@@ -756,7 +756,7 @@ tickets.get('/tickets/:ticketId', async (c) => {
 
   const ticket = await c.env.DB.prepare(
     `SELECT t.*, e.event_name, e.start_time, e.end_time, e.location_name,
-            e.banner_filename, e.tos_text, e.food_enabled, e.food_options as event_food_options,
+            e.banner_filename, e.tos_text, e.food_enabled, e.food_options as event_food_options, e.drinks_enabled, e.drink_options as event_drink_options,
             tt.tier_name, tt.price_total as tier_price, tt.name_your_price,
             CASE WHEN t.bid_price IS NOT NULL
                 THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
