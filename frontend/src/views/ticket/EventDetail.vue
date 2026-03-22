@@ -190,28 +190,6 @@
                     </div>
                   </div>
                 </div>
-                
-                <!-- Name Your Price Input -->
-                <div v-if="selectedTier === tier.tier_uuid && tier.name_your_price" class="mt-4 pt-4 border-t border-[#1f2937] animate-fade-in">
-                  <div class="flex flex-col gap-1 mb-3">
-                    <p class="text-sm font-bold text-white">Name Your Price</p>
-                    <p class="text-xs text-[#94a3b8]">Set your own price to support the event (Minimum: {{ tier.price_total === 0 ? 'FREE' : 'IDR ' + tier.price_total.toLocaleString('id-ID') }})</p>
-                  </div>
-                  <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] font-medium text-sm">IDR</span>
-                    <input 
-                      type="number" 
-                      v-model.number="bidPrice"
-                      :min="tier.price_total"
-                      step="1000"
-                      class="w-full bg-[#0a0e17] border border-[#334155] rounded-xl py-3 pl-14 pr-4 text-white font-bold focus:border-[#0df2f2] focus:ring-1 focus:ring-[#0df2f2]/50 transition-colors"
-                    />
-                  </div>
-                  <p v-if="bidPrice && bidPrice < tier.price_total" class="text-xs text-red-400 mt-2">
-                    Minimum price is {{ tier.price_total.toLocaleString('id-ID') }}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <!-- Existing Ticket Warning -->
@@ -269,7 +247,7 @@
                 </div>
                 <button
                   @click="proceedToClaim"
-                  :disabled="claimingTicket || !turnstileToken || (selectedTierData?.name_your_price && bidPrice < selectedTierData?.price_total)"
+                  :disabled="claimingTicket || !turnstileToken"
                   class="font-bold py-3 px-8 rounded-lg transition-all flex items-center gap-2 shadow-lg"
                   :class="claimingTicket
                     ? 'bg-[#334155] text-[#94a3b8] cursor-not-allowed'
@@ -388,7 +366,7 @@
           </div>
           <button
             @click="proceedToClaim"
-            :disabled="claimingTicket || !turnstileToken || (selectedTierData?.name_your_price && bidPrice < selectedTierData?.price_total)"
+            :disabled="claimingTicket || !turnstileToken"
             class="font-bold py-3 px-6 rounded-lg flex-1 text-center shadow-lg transition-all"
             :class="claimingTicket
               ? 'bg-[#334155] text-[#94a3b8] cursor-not-allowed'
@@ -427,7 +405,6 @@ export default {
     const checkingTicket = ref(false)
     const claimingTicket = ref(false)
     const claimError = ref(null)
-    const bidPrice = ref(null)
     const turnstileToken = ref('')
     const turnstileDesktopRef = ref(null)
     const turnstileMobileRef = ref(null)
@@ -475,10 +452,7 @@ export default {
 
     const displayTotal = computed(() => {
       if (!selectedTierData.value) return ''
-      let amount = selectedTierData.value.price_total
-      if (selectedTierData.value.name_your_price && bidPrice.value) {
-        amount = Math.max(bidPrice.value, amount)
-      }
+      const amount = selectedTierData.value.price_total
       return amount === 0 ? 'FREE' : 'IDR ' + amount.toLocaleString('id-ID')
     })
 
@@ -677,10 +651,6 @@ export default {
           turnstile_token: turnstileToken.value,
         }
 
-        if (selectedTierData.value?.name_your_price && bidPrice.value) {
-          payload.bid_price = bidPrice.value
-        }
-
         // Claim ticket immediately — slot is reserved, timer starts
         const data = await ticketApi.claimTicket(eventId, payload)
 
@@ -709,15 +679,8 @@ export default {
     watch(selectedTier, (val) => {
       if (val) {
         nextTick(() => renderTurnstileWidgets())
-        const t = tiers.value.find(x => x.tier_uuid === val)
-        if (t && t.name_your_price) {
-          bidPrice.value = t.price_total
-        } else {
-          bidPrice.value = null
-        }
       } else {
         resetTurnstile()
-        bidPrice.value = null
       }
     })
 
@@ -758,7 +721,6 @@ export default {
       checkingTicket,
       claimingTicket,
       claimError,
-      bidPrice,
       proceedToClaim,
       turnstileToken,
       turnstileDesktopRef,
