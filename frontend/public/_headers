@@ -7,8 +7,9 @@
   Surrogate-Control: no-store
   CDN-Cache-Control: no-store
 
-# Hashed assets from Vite can be cached forever (content hash in filename)
+# Hashed assets: browser caches forever (content hash in name), but NO CDN/proxy caching
+# (CDN must not cache assets since it may have previously cached a bad HTML response)
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-  Surrogate-Control: max-age=31536000
-  CDN-Cache-Control: max-age=31536000
+  Surrogate-Control: no-store
+  CDN-Cache-Control: no-store
