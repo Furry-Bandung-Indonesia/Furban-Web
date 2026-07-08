@@ -42,7 +42,7 @@
 
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-              <textarea v-model="form.description" rows="4" class="w-full px-4 py-3 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] resize-none text-sm" placeholder="Describe your event..."></textarea>
+              <TipTapEditor v-model="form.description" :event-id="eventId" placeholder="Describe your event... (supports rich text, images, and Mermaid diagrams)" />
             </div>
 
             <div>
@@ -53,7 +53,7 @@
                 </button>
                 <span v-if="form.tos_text" class="text-xs text-slate-500">This will replace existing content</span>
               </div>
-              <TipTapEditor v-model="form.tos_text" placeholder="Write your terms of service..." />
+              <TipTapEditor v-model="form.tos_text" :event-id="eventId" placeholder="Write your terms of service..." />
             </div>
 
             <!-- Banner Image -->

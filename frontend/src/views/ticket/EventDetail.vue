@@ -87,8 +87,7 @@
           <!-- About Section -->
           <section>
             <h2 class="text-2xl font-bold text-white mb-4">About the Event</h2>
-            <div class="text-[#94a3b8] leading-relaxed space-y-4">
-              <p>{{ event.description }}</p>
+            <div class="prose-content text-[#94a3b8] leading-relaxed" v-html="sanitizeTos(event.description || 'No description provided.')">
             </div>
           </section>
 
@@ -388,6 +387,7 @@ import { useTicketStore } from '../../stores/ticketing'
 import { useAuthStore } from '../../stores/auth'
 import ticketApi from '../../services/ticketApi'
 import DOMPurify from 'dompurify'
+import mermaid from 'mermaid'
 
 export default {
   name: 'EventDetail',
@@ -588,9 +588,49 @@ export default {
         return html.split('\n').map(line => `<p>${DOMPurify.sanitize(line)}</p>`).join('')
       }
       return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'hr', 'mark', 'span', 'div'],
-        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+        ALLOWED_TAGS: [
+          'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
+          'h1', 'h2', 'h3', 'h4', 'blockquote', 'hr', 'mark', 'span', 'div',
+          'img', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'td', 'th'
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height'],
       })
+    }
+
+    const renderingMermaid = ref(false)
+
+    async function renderMermaidDiagrams() {
+      if (renderingMermaid.value) return
+      renderingMermaid.value = true
+      await nextTick()
+      try {
+        const codeBlocks = document.querySelectorAll('pre code.language-mermaid')
+        if (codeBlocks.length === 0) {
+          renderingMermaid.value = false
+          return
+        }
+
+        codeBlocks.forEach((block) => {
+          const pre = block.parentElement
+          if (!pre) return
+
+          const div = document.createElement('div')
+          div.className = 'mermaid bg-slate-900/50 p-4 rounded-lg my-4 flex justify-center overflow-x-auto border border-slate-800'
+          div.textContent = block.textContent
+
+          pre.replaceWith(div)
+        })
+
+        if (mermaid) {
+          await mermaid.run({
+            querySelector: '.mermaid'
+          })
+        }
+      } catch (err) {
+        console.error('Failed to render mermaid diagrams:', err)
+      } finally {
+        renderingMermaid.value = false
+      }
     }
 
     async function checkExistingTicket() {
@@ -685,7 +725,25 @@ export default {
       }
     })
 
+    watch(event, (val) => {
+      if (val) {
+        nextTick(() => {
+          renderMermaidDiagrams()
+        })
+      }
+    })
+
     onMounted(async () => {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          securityLevel: 'loose',
+        })
+      } catch (err) {
+        console.error('Failed to initialize mermaid:', err)
+      }
+
       await authStore.initializeAuth()
       const eventId = route.params.eventId
       try {
@@ -747,8 +805,9 @@ export default {
   font-family: 'Be Vietnam Pro', sans-serif;
 }
 
-/* Rendered TOS HTML styles */
-.tos-content :deep(h2) {
+/* Rendered TOS & Description HTML styles */
+.tos-content :deep(h2),
+.prose-content :deep(h2) {
   font-size: 1.15rem;
   font-weight: 700;
   color: white;
@@ -756,7 +815,8 @@ export default {
   margin-bottom: 0.25rem;
 }
 
-.tos-content :deep(h3) {
+.tos-content :deep(h3),
+.prose-content :deep(h3) {
   font-size: 1rem;
   font-weight: 600;
   color: white;
@@ -764,29 +824,36 @@ export default {
   margin-bottom: 0.25rem;
 }
 
-.tos-content :deep(p) {
+.tos-content :deep(p),
+.prose-content :deep(p) {
   margin-bottom: 0.5rem;
 }
 
 .tos-content :deep(ul),
-.tos-content :deep(ol) {
+.tos-content :deep(ol),
+.prose-content :deep(ul),
+.prose-content :deep(ol) {
   padding-left: 1.5rem;
   margin-bottom: 0.5rem;
 }
 
-.tos-content :deep(ul) {
+.tos-content :deep(ul),
+.prose-content :deep(ul) {
   list-style-type: disc;
 }
 
-.tos-content :deep(ol) {
+.tos-content :deep(ol),
+.prose-content :deep(ol) {
   list-style-type: decimal;
 }
 
-.tos-content :deep(li) {
+.tos-content :deep(li),
+.prose-content :deep(li) {
   margin-bottom: 0.25rem;
 }
 
-.tos-content :deep(blockquote) {
+.tos-content :deep(blockquote),
+.prose-content :deep(blockquote) {
   border-left: 3px solid #0df2f2;
   padding-left: 1rem;
   margin: 0.5rem 0;
@@ -794,19 +861,51 @@ export default {
   font-style: italic;
 }
 
-.tos-content :deep(a) {
+.tos-content :deep(a),
+.prose-content :deep(a) {
   color: #0df2f2;
   text-decoration: underline;
 }
 
-.tos-content :deep(hr) {
+.tos-content :deep(hr),
+.prose-content :deep(hr) {
   border: none;
   border-top: 1px solid #1f2937;
   margin: 0.75rem 0;
 }
 
-.tos-content :deep(strong) {
+.tos-content :deep(strong),
+.prose-content :deep(strong) {
   color: white;
   font-weight: 600;
+}
+
+/* Image styles in rich content */
+.tos-content :deep(img),
+.prose-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #1f2937;
+  margin: 1rem 0;
+  display: block;
+}
+
+/* Pre and Code blocks in rich content */
+.tos-content :deep(pre),
+.prose-content :deep(pre) {
+  background-color: #0f172a;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  margin: 1rem 0;
+}
+
+.tos-content :deep(code),
+.prose-content :deep(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #38bdf8;
+  font-size: 0.9em;
 }
 </style>

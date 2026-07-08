@@ -654,6 +654,21 @@ class TicketApiService {
   // ═══════════════════════════════════════════════════
 
   /**
+   * Upload a content image (description / TOS) for an event to R2.
+   * Returns the public URL for the uploaded image.
+   * @param {string} eventId
+   * @param {File} file
+   */
+  async uploadEventContentImage(eventId, file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return this.request(`/api/events/${eventId}/upload-image`, {
+      method: 'POST',
+      body: formData,
+    })
+  }
+
+  /**
    * Get event banner image URL
    */
   getEventImageUrl(bannerFilename) {

@@ -224,7 +224,11 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
         body.food_options || '[]',
         body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : (body.drinks_enabled ? 1 : 0),
         body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
-    ).run()
+        body.drink_options || '[]',
+        body.status || 'draft',
+        now,
+        now,
+      ).run()
 
     // Auto-add creator as ADMIN in event_permissions
     await c.env.DB.prepare(
@@ -374,6 +378,47 @@ events.patch('/:eventId/status', authMiddleware, eventPermission('eventId'), req
   ).bind(status, new Date().toISOString(), eventId).run()
 
   return c.json({ message: `Event status changed to ${status}` })
+})
+
+/**
+ * POST /events/:eventId/upload-image
+ * Upload a content image (for description / TOS) to R2. Admin only.
+ * Returns the public /images/... URL for use in the editor.
+ */
+events.post('/:eventId/upload-image', authMiddleware, eventPermission('eventId'), requireEventAdmin, async (c) => {
+  try {
+    const eventId = c.req.param('eventId')
+    const formData = await c.req.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file || file.size === 0) {
+      return c.json({ message: 'No file provided' }, 400)
+    }
+
+    const uploadService = new UploadService(c.env.BUCKET)
+    // Reuse validateFile logic via uploadEventBanner pattern, but custom path
+    const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+    const MAX_SIZE = 8 * 1024 * 1024
+    if (file.size > MAX_SIZE) return c.json({ message: 'File too large (max 8MB)' }, 413)
+    if (!ALLOWED_TYPES.includes(file.type)) return c.json({ message: 'Invalid file type. Allowed: png, jpg, webp, gif' }, 415)
+
+    const mimeMap: Record<string, string> = {
+      'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif',
+    }
+    const ext = mimeMap[file.type] || 'jpg'
+    const filename = `${Date.now()}_content.${ext}`
+    const path = `events/${eventId}/content/${filename}`
+
+    const arrayBuffer = await file.arrayBuffer()
+    await c.env.BUCKET.put(path, arrayBuffer, {
+      httpMetadata: { contentType: file.type },
+    })
+
+    return c.json({ url: `/images/${path}` }, 201)
+  } catch (e: any) {
+    console.error('Upload image error:', e)
+    return c.json({ message: 'Failed to upload image', error: e.message }, 500)
+  }
 })
 
 export { events }

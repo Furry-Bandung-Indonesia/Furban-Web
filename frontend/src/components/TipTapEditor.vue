@@ -63,6 +63,33 @@
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
       </button>
 
+      <!-- Image Upload -->
+      <button
+        type="button"
+        @click="triggerImageUpload"
+        :class="['p-1.5 rounded transition-colors relative', isUploadingImage ? 'text-[#0df2f2] bg-[#0df2f2]/10' : 'text-slate-400 hover:text-white hover:bg-slate-700']"
+        :title="eventId ? 'Insert Image (upload to R2)' : 'Insert Image (base64 preview)'"
+        :disabled="isUploadingImage"
+      >
+        <svg v-if="!isUploadingImage" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <svg v-else class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-opacity="0.3"/>
+          <path d="M12 3a9 9 0 019 9"/>
+        </svg>
+      </button>
+      <!-- Hidden file input for image upload -->
+      <input
+        ref="imageInputRef"
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        class="hidden"
+        @change="handleImageFile"
+      />
+
       <div class="flex-1"></div>
 
       <!-- Undo/Redo -->
@@ -74,26 +101,40 @@
       </button>
     </div>
 
+    <!-- Upload error toast -->
+    <div v-if="imageUploadError" class="flex items-center gap-2 px-3 py-2 bg-red-500/10 border-b border-red-500/20 text-red-400 text-xs">
+      <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/></svg>
+      {{ imageUploadError }}
+    </div>
+
     <!-- Editor Content -->
     <editor-content :editor="editor" class="tiptap-content" />
   </div>
 </template>
 
 <script setup>
-import { watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
+import Image from '@tiptap/extension-image'
+import ticketApi from '../services/ticketApi'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: 'Start writing...' },
+  /** Pass eventId to enable R2 image upload. Without it, falls back to base64 preview. */
+  eventId: { type: String, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const imageInputRef = ref(null)
+const isUploadingImage = ref(false)
+const imageUploadError = ref('')
 
 const editor = useEditor({
   content: props.modelValue,
@@ -110,10 +151,15 @@ const editor = useEditor({
     Highlight.configure({
       HTMLAttributes: { class: 'bg-yellow-500/30 rounded px-0.5' },
     }),
+    Image.configure({
+      inline: false,
+      allowBase64: true,
+      HTMLAttributes: { class: 'rounded-lg max-w-full my-3 border border-slate-700' },
+    }),
   ],
   editorProps: {
     attributes: {
-      class: 'prose prose-invert prose-sm max-w-none px-4 py-3 min-h-[120px] max-h-[400px] overflow-y-auto focus:outline-none text-white',
+      class: 'prose prose-invert prose-sm max-w-none px-4 py-3 min-h-[120px] max-h-[500px] overflow-y-auto focus:outline-none text-white',
     },
   },
   onUpdate: ({ editor }) => {
@@ -149,6 +195,46 @@ function setLink() {
   const url = window.prompt('Enter URL:')
   if (url) {
     editor.value.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  }
+}
+
+function triggerImageUpload() {
+  imageUploadError.value = ''
+  imageInputRef.value?.click()
+}
+
+async function handleImageFile(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  // Reset input so same file can be re-selected
+  event.target.value = ''
+
+  if (props.eventId) {
+    // Upload to R2
+    isUploadingImage.value = true
+    imageUploadError.value = ''
+    try {
+      const result = await ticketApi.uploadEventContentImage(props.eventId, file)
+      // result.url is relative like /images/events/.../content/...
+      // Prepend base URL to make it absolute
+      const absoluteUrl = result.url.startsWith('http')
+        ? result.url
+        : `${ticketApi.baseURL}${result.url}`
+      editor.value?.chain().focus().setImage({ src: absoluteUrl }).run()
+    } catch (e) {
+      imageUploadError.value = e.message || 'Failed to upload image'
+      setTimeout(() => { imageUploadError.value = '' }, 4000)
+    } finally {
+      isUploadingImage.value = false
+    }
+  } else {
+    // Fallback: base64 preview (no eventId)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      editor.value?.chain().focus().setImage({ src: e.target.result }).run()
+    }
+    reader.readAsDataURL(file)
   }
 }
 </script>
@@ -225,5 +311,19 @@ function setLink() {
 .tiptap-content .ProseMirror a {
   color: #0df2f2;
   text-decoration: underline;
+}
+
+.tiptap-content .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+  margin: 0.75rem 0;
+  cursor: pointer;
+}
+
+.tiptap-content .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid #0df2f2;
+  outline-offset: 2px;
 }
 </style>
