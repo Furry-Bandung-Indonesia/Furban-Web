@@ -175,9 +175,9 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
         start_time: formData.get('start_time') as string,
         end_time: formData.get('end_time') as string,
         food_enabled: formData.get('food_enabled'),
-        food_multi_select: formData.get('food_multi_select'),          drinks_enabled: formData.get('drinks_enabled'),
-          drinks_multi_select: formData.get('drinks_multi_select'),
-          drink_options: formData.get('drink_options') as string,        food_options: formData.get('food_options') as string,
+        food_multi_select: formData.get('food_multi_select'), drinks_enabled: formData.get('drinks_enabled'),
+        drinks_multi_select: formData.get('drinks_multi_select'),
+        drink_options: formData.get('drink_options') as string, food_options: formData.get('food_options') as string,
         status: formData.get('status') as string,
       }
       bannerFile = formData.get('banner') as File | null
@@ -207,28 +207,28 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
         location_lat, location_long, location_name, start_time, end_time,
           food_enabled, food_multi_select, food_options, drinks_enabled, drinks_multi_select, drink_options, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        uuid,
-        user.sub,
-        body.event_name,
-        body.description || null,
-        bannerFilename,
-        body.tos_text || null,
-        body.location_lat ? parseFloat(body.location_lat) : null,
-        body.location_long ? parseFloat(body.location_long) : null,
-        body.location_name || null,
-        body.start_time,
-        body.end_time,
-        body.food_enabled === '0' || body.food_enabled === false ? 0 : (body.food_enabled ? 1 : 0),
-        body.food_multi_select === '0' || body.food_multi_select === false ? 0 : (body.food_multi_select ? 1 : 0),
-        body.food_options || '[]',
-        body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : (body.drinks_enabled ? 1 : 0),
-        body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
-        body.drink_options || '[]',
-        body.status || 'draft',
-        now,
-        now,
-      ).run()
+    ).bind(
+      uuid,
+      user.sub,
+      body.event_name,
+      body.description || null,
+      bannerFilename,
+      body.tos_text || null,
+      body.location_lat ? parseFloat(body.location_lat) : null,
+      body.location_long ? parseFloat(body.location_long) : null,
+      body.location_name || null,
+      body.start_time,
+      body.end_time,
+      body.food_enabled === '0' || body.food_enabled === false ? 0 : (body.food_enabled ? 1 : 0),
+      body.food_multi_select === '0' || body.food_multi_select === false ? 0 : (body.food_multi_select ? 1 : 0),
+      body.food_options || '[]',
+      body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : (body.drinks_enabled ? 1 : 0),
+      body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
+      body.drink_options || '[]',
+      body.status || 'draft',
+      now,
+      now,
+    ).run()
 
     // Auto-add creator as ADMIN in event_permissions
     await c.env.DB.prepare(
@@ -301,7 +301,7 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     if (body.location_long !== undefined) { updates.push('location_long = ?'); values.push(parseFloat(body.location_long)) }
     if (body.food_enabled !== undefined) { updates.push('food_enabled = ?'); values.push(body.food_enabled === '0' || body.food_enabled === false ? 0 : 1) }
     if (body.food_multi_select !== undefined) { updates.push('food_multi_select = ?'); values.push(body.food_multi_select === '0' || body.food_multi_select === false ? 0 : 1) }
-    
+
     if (body.drinks_enabled !== undefined) { updates.push('drinks_enabled = ?'); values.push(body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : 1) }
 
     // Handle banner upload
@@ -309,7 +309,7 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
       const uploadService = new UploadService(c.env.BUCKET)
       // Delete old banner
       if (existing.banner_filename) {
-        await uploadService.deleteFile(existing.banner_filename).catch(() => {})
+        await uploadService.deleteFile(existing.banner_filename).catch(() => { })
       }
       const result = await uploadService.uploadEventBanner(eventId, bannerFile)
       updates.push('banner_filename = ?')
@@ -352,7 +352,7 @@ events.delete('/:eventId', authMiddleware, eventPermission('eventId'), requireEv
   // Delete banner from R2
   if (existing.banner_filename) {
     const uploadService = new UploadService(c.env.BUCKET)
-    await uploadService.deleteFile(existing.banner_filename).catch(() => {})
+    await uploadService.deleteFile(existing.banner_filename).catch(() => { })
   }
 
   // Cascade delete handled by FK constraints
@@ -417,7 +417,7 @@ events.post('/:eventId/upload-image', authMiddleware, eventPermission('eventId')
     return c.json({ url: `/images/${path}` }, 201)
   } catch (e: any) {
     console.error('Upload image error:', e)
-    return c.json({ message: 'Failed to upload image', error: e.message }, 500)
+    return c.json({ message: 'Failed to upload images', error: e.message }, 500)
   }
 })
 
