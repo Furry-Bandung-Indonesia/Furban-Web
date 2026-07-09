@@ -1,5 +1,23 @@
 // v3 - guaranteed cache bust
-console.log('Furban build version 2026-07-09-v3')
+console.log('Furban build version july 2026')
+console.log(`           ++++      ++++           
+          ++++++    ++++++          
+         ++++++++  ++++++++         
+         ++++++++  ++++++++         
+         +++++++++++++++++++        
+     ++++++++++++++++++++++++++     
+    +++++++++++++  +++++++++++++    
+    +++++++  +  +==+  +   ++++++    
+    +++++++  ++++==++++  +++++++    
+    +++++++ +++++==+++++ +++++++    
+     ++++ +++++++=-+++++++ ++++     
+        ++++++++::::++++++++        
+       +++----------------=++       
+       +---..............---+       
+       +=..==============..=+       
+        +++: =. =  = .= :+++        
+          +: =.      .= .+          
+                                    `)
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -13,11 +31,11 @@ import './style.css'
 // Defensive check for browser extension conflicts
 if (typeof window !== 'undefined') {
   const originalConsoleError = console.error
-  console.error = function(...args) {
+  console.error = function (...args) {
     // Filter out known browser extension errors
-    if (args[0] && typeof args[0] === 'string' && 
-        args[0].includes('cssRules') && 
-        args[0].includes('content.js')) {
+    if (args[0] && typeof args[0] === 'string' &&
+      args[0].includes('cssRules') &&
+      args[0].includes('content.js')) {
       return // Ignore this specific error
     }
     originalConsoleError.apply(console, args)
