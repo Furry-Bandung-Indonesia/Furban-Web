@@ -73,7 +73,7 @@ tickets.use('*', authMiddleware)
  * Claim a ticket for an event.
  *
  * Body: {
- *   tier_uuid, first_name, last_name, nickname, date_of_birth, phone_number,
+ *   tier_uuid, first_name, last_name, nickname, date_of_birth, social_link,
  *   is_fursuiter, food_selection, turnstile_token (verified by middleware or inline)
  * }
  *
@@ -94,7 +94,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
   const eventId = c.req.param('eventId')
   const body = await c.req.json()
 
-  const { tier_uuid, first_name, last_name, nickname, date_of_birth, phone_number, is_fursuiter, food_selection, drink_selection, food_notes, turnstile_token } = body
+  const { tier_uuid, first_name, last_name, nickname, date_of_birth, social_link, is_fursuiter, food_selection, drink_selection, food_notes, turnstile_token } = body
 
   // ─── Validate input ──────────────────────────────
   if (!tier_uuid || !first_name) {
@@ -236,7 +236,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     lastName: last_name || '',
     nickname: nickname || '',
     email: user.email || '',
-    phoneNumber: phone_number || '',
+    phoneNumber: social_link || '',
   }, user.sub)
 
   if (modResult.match) {
@@ -254,7 +254,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
         modResult.blocked ? 'BAN_BLOCKED' : 'WATCH_DETECTED',
         modResult.detection_type, modResult.similarity_score,
         user.sub, undefined, modResult.matchedFields,
-        user.email || '', phone_number || '',
+        user.email || '', social_link || '',
       )
     }
     // User continues normally — no blocking based on detection alone
@@ -361,14 +361,14 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
   await c.env.DB.prepare(
     `INSERT INTO tickets
      (ticket_uuid, event_uuid, tier_uuid, user_uuid, ticket_number,
-      first_name, last_name, nickname, date_of_birth, phone_number,
+      first_name, last_name, nickname, date_of_birth, social_link,
       is_fursuiter, food_selection, food_total, drink_selection, drink_total, bid_price, food_notes,
       purchase_status, claim_expiry, created_at, updated_at)
      VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
   ).bind(
     ticketUuid, eventId, tier_uuid, user.sub,
     first_name, last_name || null, nickname || null,
-    date_of_birth || null, phone_number || null,
+    date_of_birth || null, social_link || null,
     is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal, JSON.stringify(drinkSelNorm), drinkTotal,
     bidPrice,
     food_notes?.trim() || null,
@@ -416,7 +416,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
  * Update personal info on a ticket the user owns.
  * Only allowed while purchase_status = 'under_payment'.
  *
- * Body: { first_name?, last_name?, nickname?, date_of_birth?, phone_number?, is_fursuiter?, bid_price?, food_selection? }
+ * Body: { first_name?, last_name?, nickname?, date_of_birth?, social_link?, is_fursuiter?, bid_price?, food_selection? }
  */
 tickets.put('/tickets/:ticketId', async (c) => {
   const user = c.get('user') as JWTPayload
@@ -458,8 +458,8 @@ tickets.put('/tickets/:ticketId', async (c) => {
   if (body.date_of_birth !== undefined) {
     updates.push('date_of_birth = ?'); values.push(body.date_of_birth || null)
   }
-  if (body.phone_number !== undefined) {
-    updates.push('phone_number = ?'); values.push(body.phone_number?.trim() || null)
+  if (body.social_link !== undefined) {
+    updates.push('social_link = ?'); values.push(body.social_link?.trim() || null)
   }
   if (body.is_fursuiter !== undefined) {
     updates.push('is_fursuiter = ?'); values.push(body.is_fursuiter ? 1 : 0)

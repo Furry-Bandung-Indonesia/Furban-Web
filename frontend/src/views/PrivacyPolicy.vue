@@ -12,11 +12,11 @@
           <p class="text-gray-700 dark:text-gray-300 leading-relaxed">Furban ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our website and services, including the event ticketing system.</p>
           <div class="space-y-3">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">1. Information We Collect</h2>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed">We collect information you provide directly to us, such as when you create an account, upload content, purchase event tickets, or contact us. This may include your name, email address, username, date of birth, phone number, and any content you submit (photos, blog posts, etc.).</p>
+            <p class="text-gray-600 dark:text-gray-300 leading-relaxed">We collect information you provide directly to us, such as when you create an account, upload content, purchase event tickets, or contact us. This may include your name, email address, username, date of birth, social link, and any content you submit (photos, blog posts, etc.).</p>
           </div>
           <div class="space-y-3">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">2. Ticketing & Event Data</h2>
-            <p class="text-gray-600 dark:text-gray-300 leading-relaxed">When you purchase a ticket for an event, we collect and store additional information required for event management, including your full name, date of birth, phone number, dietary preferences (food selection), fursuiter status, and payment transaction records. This data is necessary to issue your ticket, facilitate check-in, and manage event logistics.</p>
+            <p class="text-gray-600 dark:text-gray-300 leading-relaxed">When you purchase a ticket for an event, we collect and store additional information required for event management, including your full name, date of birth, social link, dietary preferences (food selection), fursuiter status, and payment transaction records. This data is necessary to issue your ticket, facilitate check-in, and manage event logistics.</p>
           </div>
           <div class="space-y-3">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">3. How We Use Your Information</h2>

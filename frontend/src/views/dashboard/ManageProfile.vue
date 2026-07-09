@@ -66,8 +66,8 @@
                 <input v-model="profileForm.date_of_birth" type="date" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none transition-all" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1.5">Phone Number</label>
-                <input v-model="profileForm.phone_number" type="tel" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none transition-all" placeholder="+62 812 3456 7890" />
+                <label class="block text-sm font-medium text-slate-300 mb-1.5">Social Link</label>
+                <input v-model="profileForm.social_link" type="tel" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none transition-all" placeholder="+62 812 3456 7890" />
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -172,7 +172,7 @@ import { getAuthImageUrl } from '@/config/api'
 const authStore = useAuthStore()
 
 // State
-const profileForm = ref({ legal_name: '', nickname: '', first_name: '', last_name: '', date_of_birth: '', phone_number: '' })
+const profileForm = ref({ legal_name: '', nickname: '', first_name: '', last_name: '', date_of_birth: '', social_link: '' })
 const profileLoading = ref(false)
 const passwordForm = ref({ old_password: '', new_password: '', confirm_password: '' })
 const passwordLoading = ref(false)
@@ -223,7 +223,7 @@ const initializeProfile = () => {
       first_name: authStore.user.first_name || '',
       last_name: authStore.user.last_name || '',
       date_of_birth: authStore.user.date_of_birth || '',
-      phone_number: authStore.user.phone_number || ''
+      social_link: authStore.user.social_link || ''
     }
   }
 }

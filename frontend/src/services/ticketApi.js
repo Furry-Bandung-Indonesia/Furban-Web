@@ -80,7 +80,7 @@ class TicketApiService {
   /**
    * Claim a ticket for an event
    * @param {string} eventId
-   * @param {Object} body - { tier_uuid, first_name, last_name, nickname, date_of_birth, phone_number, is_fursuiter, food_selection, turnstile_token }
+   * @param {Object} body - { tier_uuid, first_name, last_name, nickname, date_of_birth, social_link, is_fursuiter, food_selection, turnstile_token }
    */
   async claimTicket(eventId, body) {
     return this.request(`/api/events/${eventId}/claim`, {
@@ -131,7 +131,7 @@ class TicketApiService {
   /**
    * Update personal info on a ticket (while under_payment)
    * @param {string} ticketId
-   * @param {Object} body - { first_name?, last_name?, nickname?, date_of_birth?, phone_number?, is_fursuiter?, food_selection? }
+   * @param {Object} body - { first_name?, last_name?, nickname?, date_of_birth?, social_link?, is_fursuiter?, food_selection? }
    */
   async updateMyTicket(ticketId, body) {
     return this.request(`/api/tickets/${ticketId}`, {

@@ -30,7 +30,7 @@ events.get('/', async (c) => {
 
   let query = `SELECT event_uuid, event_name, description, banner_filename,
                       location_name, location_lat, location_long, start_time, end_time, status,
-                      food_enabled, sales_status, sales_open_time, sales_close_time, created_at,
+                      food_enabled, sales_status, sales_open_time, sales_close_time, additional_link, created_at,
                       (SELECT MIN(price_total) FROM ticket_tiers WHERE ticket_tiers.event_uuid = events.event_uuid AND quota_available > 0) as min_price,
                       (SELECT COUNT(*) FROM ticket_tiers WHERE ticket_tiers.event_uuid = events.event_uuid) as tier_count
                FROM events WHERE status = 'published'`
@@ -179,6 +179,7 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
         drinks_multi_select: formData.get('drinks_multi_select'),
         drink_options: formData.get('drink_options') as string, food_options: formData.get('food_options') as string,
         status: formData.get('status') as string,
+        additional_link: formData.get('additional_link') as string,
       }
       bannerFile = formData.get('banner') as File | null
     } else {
@@ -205,8 +206,8 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       `INSERT INTO events
        (event_uuid, creator_uuid, event_name, description, banner_filename, tos_text,
         location_lat, location_long, location_name, start_time, end_time,
-          food_enabled, food_multi_select, food_options, drinks_enabled, drinks_multi_select, drink_options, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          food_enabled, food_multi_select, food_options, drinks_enabled, drinks_multi_select, drink_options, status, additional_link, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       uuid,
       user.sub,
@@ -226,6 +227,7 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
       body.drink_options || '[]',
       body.status || 'draft',
+      body.additional_link || null,
       now,
       now,
     ).run()
@@ -279,7 +281,7 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     const updates: string[] = []
     const values: any[] = []
 
-    const stringFields = ['event_name', 'description', 'tos_text', 'location_name', 'start_time', 'end_time', 'food_options', 'drink_options', 'status', 'sales_status']
+    const stringFields = ['event_name', 'description', 'tos_text', 'location_name', 'start_time', 'end_time', 'food_options', 'drink_options', 'status', 'sales_status', 'additional_link']
     for (const f of stringFields) {
       if (body[f] !== undefined) {
         updates.push(`${f} = ?`)

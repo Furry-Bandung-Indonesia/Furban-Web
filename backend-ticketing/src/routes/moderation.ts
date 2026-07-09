@@ -38,20 +38,20 @@ interface MatchDetail { field: string; score: number; type: 'EXACT' | 'SIMILAR' 
  * Works for both attendees (tickets) and website users (auth DB).
  */
 function matchPersonAgainstKeyword(
-  person: { first_name?: string; last_name?: string; nickname?: string; phone_number?: string; email?: string },
-  kw: { legal_name?: string; first_name?: string; last_name?: string; nickname?: string; email?: string; phone_number?: string },
+  person: { first_name?: string; last_name?: string; nickname?: string; social_link?: string; email?: string },
+  kw: { legal_name?: string; first_name?: string; last_name?: string; nickname?: string; email?: string; social_link?: string },
 ): MatchDetail[] {
   const kwLegal = (kw.legal_name || '').trim().toLowerCase()
   const kwFirst = (kw.first_name || '').trim().toLowerCase()
   const kwLast = (kw.last_name || '').trim().toLowerCase()
   const kwNick = (kw.nickname || '').trim().toLowerCase()
-  const kwPhone = (kw.phone_number || '').replace(/\D/g, '')
+  const kwSocial = (kw.social_link || '').replace(/\D/g, '')
   const kwEmail = (kw.email || '').trim().toLowerCase()
 
   const attFirst = (person.first_name || '').trim().toLowerCase()
   const attLast = (person.last_name || '').trim().toLowerCase()
   const attNick = (person.nickname || '').trim().toLowerCase()
-  const attPhone = (person.phone_number || '').replace(/\D/g, '')
+  const attSocial = (person.social_link || '').replace(/\D/g, '')
   const attEmail = (person.email || '').trim().toLowerCase()
   const attFullName = [attFirst, attLast].filter(Boolean).join(' ')
 
@@ -63,8 +63,8 @@ function matchPersonAgainstKeyword(
   }
 
   // Phone exact match
-  if (kwPhone && attPhone && kwPhone === attPhone) {
-    matchDetails.push({ field: 'phone_number', score: 100, type: 'EXACT' })
+  if (kwSocial && attSocial && kwSocial === attSocial) {
+    matchDetails.push({ field: 'social_link', score: 100, type: 'EXACT' })
   }
 
   // Legal name vs full name
@@ -122,7 +122,7 @@ async function createSuspect(
   eventUuid: string,
   moderationUuid: string,
   moderationType: string,
-  person: { first_name?: string; last_name?: string; nickname?: string; phone_number?: string; email?: string; user_uuid: string; ticket_uuid?: string | null },
+  person: { first_name?: string; last_name?: string; nickname?: string; social_link?: string; email?: string; user_uuid: string; ticket_uuid?: string | null },
   matchDetails: MatchDetail[],
 ): Promise<void> {
   const highestScore = Math.max(...matchDetails.map(d => d.score))
@@ -136,13 +136,13 @@ async function createSuspect(
     `INSERT INTO moderation_attempt_log
      (attempt_uuid, event_uuid, moderation_uuid, masked_name, attempt_type,
       detection_type, similarity_score,
-      raw_legal_name, raw_nickname, raw_email, raw_phone,
+      raw_legal_name, raw_nickname, raw_email, raw_social,
       user_uuid, ticket_uuid, matched_fields, resolution)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`
   ).bind(
     crypto.randomUUID(), eventUuid, moderationUuid, masked, attemptType,
     detectionType, highestScore,
-    fullName, person.nickname || null, person.email || null, person.phone_number || null,
+    fullName, person.nickname || null, person.email || null, person.social_link || null,
     person.user_uuid, person.ticket_uuid || null,
     JSON.stringify(matchDetails.map(d => d.field)),
   ).run()
@@ -187,7 +187,7 @@ moderation.get('/:eventId/moderation', eventPermission('eventId'), async (c) => 
   if (search) {
     query += ` AND (
       legal_name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR
-      nickname LIKE ? OR email LIKE ? OR phone_number LIKE ?
+      nickname LIKE ? OR email LIKE ? OR social_link LIKE ?
     )`
     const s = `%${search}%`
     params.push(s, s, s, s, s, s)
@@ -251,7 +251,7 @@ moderation.get('/:eventId/moderation/:modId/detail', eventPermission('eventId'),
  * POST /manage/:eventId/moderation
  * Add a person to the keyword list.
  *
- * Body: { legal_name, first_name?, last_name?, nickname?, email?, phone_number?,
+ * Body: { legal_name, first_name?, last_name?, nickname?, email?, social_link?,
  *         moderation_type: 'BAN'|'WATCH', notes }
  */
 moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) => {
@@ -277,7 +277,7 @@ moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) =>
   await c.env.DB.prepare(
     `INSERT INTO moderation_list
      (moderation_uuid, event_uuid, legal_name, first_name, last_name, nickname,
-      email, phone_number, moderation_type, status, is_enabled, notes, added_by, created_at, updated_at)
+      email, social_link, moderation_type, status, is_enabled, notes, added_by, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 1, ?, ?, ?, ?)`
   ).bind(
     uuid, eventId,
@@ -286,7 +286,7 @@ moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) =>
     body.last_name || null,
     body.nickname || null,
     body.email || null,
-    body.phone_number || null,
+    body.social_link || null,
     body.moderation_type,
     body.notes.trim(),
     user.email, now, now,
@@ -300,7 +300,7 @@ moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) =>
 
   // Fetch attendees from ALL events (global scope)
   const { results: allAttendees } = await c.env.DB.prepare(
-    `SELECT ticket_uuid, event_uuid, user_uuid, first_name, last_name, nickname, phone_number
+    `SELECT ticket_uuid, event_uuid, user_uuid, first_name, last_name, nickname, social_link
      FROM tickets WHERE purchase_status IN ('paid', 'under_payment')`
   ).all()
 
@@ -340,7 +340,7 @@ moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) =>
 
   if (c.env.AUTH_DB) {
     const { results: allUsers } = await c.env.AUTH_DB.prepare(
-      `SELECT uuid, email, first_name, last_name, nickname, phone_number
+      `SELECT uuid, email, first_name, last_name, nickname, social_link
        FROM users WHERE is_active = 1`
     ).all()
 
@@ -368,7 +368,7 @@ moderation.post('/:eventId/moderation', eventPermission('eventId'), async (c) =>
           first_name: u.first_name || undefined,
           last_name: u.last_name || undefined,
           nickname: u.nickname || undefined,
-          phone_number: u.phone_number || undefined,
+          social_link: u.social_link || undefined,
           email: u.email || undefined,
           user_uuid: u.uuid,
           ticket_uuid: null as string | null,
@@ -414,7 +414,7 @@ moderation.put('/:eventId/moderation/:modId', eventPermission('eventId'), async 
   if (body.last_name !== undefined) { updates.push('last_name = ?'); values.push(body.last_name || null) }
   if (body.nickname !== undefined) { updates.push('nickname = ?'); values.push(body.nickname || null) }
   if (body.email !== undefined) { updates.push('email = ?'); values.push(body.email || null) }
-  if (body.phone_number !== undefined) { updates.push('phone_number = ?'); values.push(body.phone_number || null) }
+  if (body.social_link !== undefined) { updates.push('social_link = ?'); values.push(body.social_link || null) }
   if (body.moderation_type !== undefined) {
     if (!['BAN', 'WATCH'].includes(body.moderation_type)) {
       return c.json({ message: 'moderation_type must be BAN or WATCH' }, 400)
@@ -518,7 +518,7 @@ moderation.post('/:eventId/moderation/scan', eventPermission('eventId'), async (
 
   // 2. Get ALL active attendees from ALL events
   const { results: allAttendees } = await c.env.DB.prepare(
-    `SELECT ticket_uuid, event_uuid, user_uuid, first_name, last_name, nickname, phone_number
+    `SELECT ticket_uuid, event_uuid, user_uuid, first_name, last_name, nickname, social_link
      FROM tickets WHERE purchase_status IN ('paid', 'under_payment')`
   ).all()
 
@@ -567,7 +567,7 @@ moderation.post('/:eventId/moderation/scan', eventPermission('eventId'), async (
 
   if (c.env.AUTH_DB) {
     const { results: allUsers } = await c.env.AUTH_DB.prepare(
-      `SELECT uuid, email, first_name, last_name, nickname, phone_number
+      `SELECT uuid, email, first_name, last_name, nickname, social_link
        FROM users WHERE is_active = 1`
     ).all()
 
@@ -591,7 +591,7 @@ moderation.post('/:eventId/moderation/scan', eventPermission('eventId'), async (
           first_name: user.first_name || undefined,
           last_name: user.last_name || undefined,
           nickname: user.nickname || undefined,
-          phone_number: user.phone_number || undefined,
+          social_link: user.social_link || undefined,
           email: user.email || undefined,
           user_uuid: user.uuid,
           ticket_uuid: null as string | null,
@@ -1189,7 +1189,7 @@ moderation.get('/:eventId/moderation/:modId/appeals', eventPermission('eventId')
  * POST /manage/:eventId/moderation/check
  * Manual moderation check. Returns match status without logging an attempt.
  *
- * Body: { first_name?, last_name?, nickname?, email?, phone_number? }
+ * Body: { first_name?, last_name?, nickname?, email?, social_link? }
  */
 moderation.post('/:eventId/moderation/check', eventPermission('eventId'), async (c) => {
   const eventId = c.req.param('eventId')
@@ -1217,8 +1217,8 @@ moderation.post('/:eventId/moderation/check', eventPermission('eventId'), async 
     if (body.email && e.email && body.email.toLowerCase().trim() === e.email.toLowerCase().trim()) {
       matchedFields.push('email')
     }
-    if (body.phone_number && e.phone_number && body.phone_number.replace(/\D/g, '') === e.phone_number.replace(/\D/g, '')) {
-      matchedFields.push('phone_number')
+    if (body.social_link && e.social_link && body.social_link.replace(/\D/g, '') === e.social_link.replace(/\D/g, '')) {
+      matchedFields.push('social_link')
     }
 
     const fullName = [body.first_name, body.last_name].filter(Boolean).join(' ').toLowerCase().trim()

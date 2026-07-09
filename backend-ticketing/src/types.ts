@@ -55,6 +55,7 @@ export interface EventRow {
   sales_status: 'available' | 'sold_out' | 'coming_soon' | 'unavailable'
   sales_open_time: string | null
   sales_close_time: string | null
+  additional_link: string | null
   created_at: string
   updated_at: string
 }
@@ -84,7 +85,7 @@ export interface TicketRow {
   last_name: string | null
   nickname: string | null
   date_of_birth: string | null
-  phone_number: string | null
+  social_link: string | null
   is_fursuiter: number
   food_selection: string
   food_total: number
@@ -118,7 +119,7 @@ export interface ModerationRow {
   last_name: string | null
   nickname: string | null
   email: string | null
-  phone_number: string | null
+  social_link: string | null
   moderation_type: 'BAN' | 'WATCH'
   status: 'ACTIVE' | 'APPEALED'
   is_enabled: number        // 1=enabled, 0=disabled
@@ -140,7 +141,7 @@ export interface ModerationAttemptRow {
   raw_legal_name: string | null
   raw_nickname: string | null
   raw_email: string | null
-  raw_phone: string | null
+  raw_social: string | null
   user_uuid: string | null
   ticket_uuid: string | null
   matched_fields: string | null    // JSON array of field names

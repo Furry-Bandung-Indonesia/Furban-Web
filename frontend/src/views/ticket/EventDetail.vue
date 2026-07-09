@@ -204,19 +204,19 @@
                 <p class="text-red-300/80 text-xs mb-3">
                   {{ existingTicket.purchase_status === 'paid'
                     ? 'Each user can only claim one ticket per event.'
-                    : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.phone_number
+                    : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.social_link
                       ? 'You have a pending payment. Please complete or cancel it first.'
                       : 'You have a pending reservation. Please complete your information first.') }}
                 </p>
                 <router-link
                   :to="existingTicket.purchase_status === 'paid'
                     ? `/event/ticket/${existingTicket.ticket_uuid}`
-                    : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.phone_number
+                    : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.social_link
                       ? `/event/payment/${existingTicket.ticket_uuid}`
                       : `/event/ticket/${existingTicket.ticket_uuid}/fill`)"
                   class="inline-flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-semibold text-xs px-4 py-2 rounded-lg transition-colors border border-red-500/30"
                 >
-                  {{ existingTicket.purchase_status === 'paid' ? 'View My Ticket' : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.phone_number ? 'Complete Payment' : 'Complete Registration') }}
+                  {{ existingTicket.purchase_status === 'paid' ? 'View My Ticket' : (existingTicket.nickname && existingTicket.date_of_birth && existingTicket.social_link ? 'Complete Payment' : 'Complete Registration') }}
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
@@ -267,6 +267,16 @@
           <section v-if="event.tos_text">
             <h2 class="text-2xl font-bold text-white mb-4">Terms & Conditions</h2>
             <div class="tos-content text-[#94a3b8] leading-relaxed bg-[#111827] p-6 rounded-xl border border-[#1f2937] text-sm" v-html="sanitizeTos(event.tos_text)"></div>
+          </section>
+
+          <!-- Additional Link Section -->
+          <section v-if="event.additional_link && existingTicket && existingTicket.purchase_status === 'paid'" class="mt-8">
+            <h2 class="text-2xl font-bold text-white mb-4">Links</h2>
+            <div class="bg-[#111827] p-6 rounded-xl border border-[#1f2937] text-sm text-[#94a3b8]">
+              <a :href="event.additional_link" target="_blank" rel="noopener noreferrer" class="text-[#0df2f2] hover:underline break-all">
+                {{ event.additional_link }}
+              </a>
+            </div>
           </section>
         </div>
 

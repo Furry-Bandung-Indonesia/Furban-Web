@@ -56,6 +56,12 @@
               <TipTapEditor v-model="form.tos_text" :event-id="eventId" placeholder="Write your terms of service..." />
             </div>
 
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-2">Additional Link (Post-Registration)</label>
+              <input v-model="form.additional_link" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" placeholder="https://t.me/yourgroup or other link to show after ticket claim" />
+              <p class="text-xs text-slate-500 mt-1">This link will only be shown to users who have successfully claimed/purchased a ticket.</p>
+            </div>
+
             <!-- Banner Image -->
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-2">Banner Image</label>
@@ -548,6 +554,7 @@ const form = reactive({
   event_name: '',
   description: '',
   tos_text: '',
+  additional_link: '',
   location_name: '',
   location_lat: null,
   location_long: null,
@@ -628,6 +635,7 @@ function populateForm(ev) {
   form.event_name = ev.event_name || ''
   form.description = ev.description || ''
   form.tos_text = ev.tos_text || ''
+  form.additional_link = ev.additional_link || ''
   form.location_name = ev.location_name || ''
   form.location_lat = ev.location_lat || null
   form.location_long = ev.location_long || null
@@ -744,6 +752,7 @@ async function saveEvent() {
     else fd.append('sales_open_time', '')
     if (form.sales_close_time) fd.append('sales_close_time', new Date(form.sales_close_time).toISOString())
     else fd.append('sales_close_time', '')
+    fd.append('additional_link', form.additional_link || '')
     if (foodOptions.value.length) fd.append('food_options', JSON.stringify(foodOptions.value.filter(o => o.name).map(o => ({
       name: o.name,
       price: o.price || 0,

@@ -41,7 +41,7 @@ app.get('/', async (c) => {
         first_name: user.first_name,
         last_name: user.last_name,
         date_of_birth: user.date_of_birth,
-        phone_number: user.phone_number,
+        social_link: user.social_link,
         profile_image_url: user.profile_image_url,
         auth_provider: user.auth_provider || 'local',
         pending_profile: user.pending_profile === 1,
@@ -63,7 +63,7 @@ app.get('/', async (c) => {
 app.patch('/', async (c) => {
   try {
     const userPayload = c.get('user')
-    const { legal_name, nickname, first_name, last_name, date_of_birth, phone_number } = await c.req.json()
+    const { legal_name, nickname, first_name, last_name, date_of_birth, social_link } = await c.req.json()
 
     const updates: string[] = []
     const values: any[] = []
@@ -108,12 +108,9 @@ app.patch('/', async (c) => {
       values.push(date_of_birth || null)
     }
 
-    if (phone_number !== undefined) {
-      if (phone_number && (phone_number.length < 5 || phone_number.length > 20)) {
-        return c.json({ message: 'Phone number must be between 5 and 20 characters' }, 400)
-      }
-      updates.push('phone_number = ?')
-      values.push(phone_number || null)
+    if (social_link !== undefined) {
+      updates.push('social_link = ?')
+      values.push(social_link || null)
     }
 
     if (updates.length === 0) {
@@ -145,7 +142,7 @@ app.patch('/', async (c) => {
         first_name: user!.first_name,
         last_name: user!.last_name,
         date_of_birth: user!.date_of_birth,
-        phone_number: user!.phone_number,
+        social_link: user!.social_link,
         profile_image_url: user!.profile_image_url
       }
     })

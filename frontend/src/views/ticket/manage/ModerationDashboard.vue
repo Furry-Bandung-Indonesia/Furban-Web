@@ -140,9 +140,9 @@
                       <td class="px-5 py-3.5">
                         <div class="flex flex-wrap gap-1">
                           <span v-if="mod.email" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">email</span>
-                          <span v-if="mod.phone_number" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">phone</span>
+                          <span v-if="mod.social_link" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">phone</span>
                           <span v-if="mod.first_name || mod.last_name" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">name</span>
-                          <span v-if="!mod.email && !mod.phone_number && !mod.first_name && !mod.last_name" class="text-[10px] text-slate-500">legal only</span>
+                          <span v-if="!mod.email && !mod.social_link && !mod.first_name && !mod.last_name" class="text-[10px] text-slate-500">legal only</span>
                         </div>
                       </td>
                       <td class="px-5 py-3.5">
@@ -241,7 +241,7 @@
                         </div>
                         <div class="bg-slate-900 rounded-lg p-2.5">
                           <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Phone</p>
-                          <p class="text-sm text-white mt-0.5">{{ selectedEntry.phone_number || '—' }}</p>
+                          <p class="text-sm text-white mt-0.5">{{ selectedEntry.social_link || '—' }}</p>
                         </div>
                       </div>
                     </div>
@@ -662,7 +662,7 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-1">Phone Number <span class="text-[10px] text-slate-500">(exact match)</span></label>
-              <input v-model="modalForm.phone_number" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" />
+              <input v-model="modalForm.social_link" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" />
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-300 mb-1">Action Type *</label>
@@ -1123,7 +1123,7 @@ const isSavingModal = ref(false)
 const modalError = ref('')
 const modalForm = ref({
   legal_name: '', first_name: '', last_name: '', nickname: '',
-  email: '', phone_number: '', moderation_type: 'BAN', notes: '',
+  email: '', social_link: '', moderation_type: 'BAN', notes: '',
 })
 
 // ─── Appeal Modal ───
@@ -1275,7 +1275,7 @@ function openAddModal() {
   editingEntry.value = null
   modalForm.value = {
     legal_name: '', first_name: '', last_name: '', nickname: '',
-    email: '', phone_number: '', moderation_type: 'BAN', notes: '',
+    email: '', social_link: '', moderation_type: 'BAN', notes: '',
   }
   modalError.value = ''
   showModal.value = true
@@ -1289,7 +1289,7 @@ function openEditModal(entry) {
     last_name: entry.last_name || '',
     nickname: entry.nickname || '',
     email: entry.email || '',
-    phone_number: entry.phone_number || '',
+    social_link: entry.social_link || '',
     moderation_type: entry.moderation_type,
     notes: entry.notes || '',
   }

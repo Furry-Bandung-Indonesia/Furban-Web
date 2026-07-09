@@ -292,14 +292,14 @@
                     </div>
                   </div>
                   <div class="flex flex-col gap-2">
-                    <span class="text-white text-sm font-semibold tracking-wide">Phone Number <span class="text-red-400">*</span></span>
+                    <span class="text-white text-sm font-semibold tracking-wide">Social Link <span class="text-red-400">*</span></span>
                     <div class="relative group">
                       <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] group-focus-within:text-[#0df2f2] transition-colors">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                       </span>
-                      <input v-model="form.phone_number" type="tel"
+                      <input v-model="form.social_link" type="tel"
                         class="w-full h-12 pl-12 pr-4 rounded-lg bg-[#1e293b] text-white border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] transition-all"
                         placeholder="+62 812 3456 7890" />
                     </div>
@@ -581,7 +581,7 @@ const form = ref({
   last_name: '',
   nickname: '',
   date_of_birth: '',
-  phone_number: '',
+  social_link: '',
   is_fursuiter: false,
   food_selection: [],   // [{name, choice?, choice_price?}]
   food_notes: '',
@@ -753,7 +753,7 @@ const firstNameNeedsChange = computed(() => {
 })
 
 const isSubmitDisabled = computed(() => {
-  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.phone_number?.trim() || foodMissing.value || drinkMissing.value || !tosAgreed.value || firstNameNeedsChange.value
+  return submitting.value || !form.value.first_name || !form.value.nickname?.trim() || !form.value.date_of_birth || !form.value.social_link?.trim() || foodMissing.value || drinkMissing.value || !tosAgreed.value || firstNameNeedsChange.value
 })
 
 // Timer
@@ -813,7 +813,7 @@ async function handleSubmit() {
       last_name: form.value.last_name.trim() || null,
       nickname: form.value.nickname.trim(),
       date_of_birth: form.value.date_of_birth,
-      phone_number: form.value.phone_number.trim(),
+      social_link: form.value.social_link.trim(),
       is_fursuiter: form.value.is_fursuiter,
     }
 
@@ -874,7 +874,7 @@ onMounted(async () => {
     form.value.last_name = ticketData.last_name || u.last_name || ''
     form.value.nickname = ticketData.nickname || u.nickname || ''
     form.value.date_of_birth = ticketData.date_of_birth || u.date_of_birth || ''
-    form.value.phone_number = ticketData.phone_number || u.phone_number || ''
+    form.value.social_link = ticketData.social_link || u.social_link || ''
     form.value.is_fursuiter = !!ticketData.is_fursuiter
 
     // Initialize bid price for Name Your Price tiers

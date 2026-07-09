@@ -128,8 +128,8 @@
               <input v-model="userForm.date_of_birth" type="date" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-300 mb-1.5">Phone Number</label>
-              <input v-model="userForm.phone_number" type="tel" placeholder="+62 812 3456 7890" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none" />
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Social Link</label>
+              <input v-model="userForm.social_link" type="tel" placeholder="+62 812 3456 7890" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
@@ -239,8 +239,8 @@
                 <p class="text-sm text-white font-medium">{{ selectedUser?.date_of_birth || '—' }}</p>
               </div>
               <div class="bg-[#0d0f13] rounded-lg p-3">
-                <p class="text-xs text-slate-500 mb-1">Phone Number</p>
-                <p class="text-sm text-white font-medium">{{ selectedUser?.phone_number || '—' }}</p>
+                <p class="text-xs text-slate-500 mb-1">Social Link</p>
+                <p class="text-sm text-white font-medium">{{ selectedUser?.social_link || '—' }}</p>
               </div>
             </div>
           </div>
@@ -316,7 +316,7 @@ const userForm = ref({
   first_name: '',
   last_name: '',
   date_of_birth: '',
-  phone_number: '',
+  social_link: '',
   legal_name: '',
   nickname: '',
   role: 'user',
@@ -367,7 +367,7 @@ const resetUserForm = () => {
     first_name: '',
     last_name: '',
     date_of_birth: '',
-    phone_number: '',
+    social_link: '',
     legal_name: '',
     nickname: '',
     role: 'user',
@@ -396,7 +396,7 @@ const editUser = (user) => {
     first_name: user.first_name || '',
     last_name: user.last_name || '',
     date_of_birth: user.date_of_birth || '',
-    phone_number: user.phone_number || '',
+    social_link: user.social_link || '',
     legal_name: user.legal_name || '',
     nickname: user.nickname || '',
     password: '',
@@ -419,7 +419,7 @@ const submitUser = async () => {
         first_name: userForm.value.first_name,
         last_name: userForm.value.last_name,
         date_of_birth: userForm.value.date_of_birth,
-        phone_number: userForm.value.phone_number,
+        social_link: userForm.value.social_link,
         legal_name: userForm.value.legal_name,
         nickname: userForm.value.nickname,
         is_active: userForm.value.is_active
@@ -437,7 +437,7 @@ const submitUser = async () => {
         first_name: userForm.value.first_name,
         last_name: userForm.value.last_name,
         date_of_birth: userForm.value.date_of_birth,
-        phone_number: userForm.value.phone_number,
+        social_link: userForm.value.social_link,
         legal_name: userForm.value.legal_name,
         nickname: userForm.value.nickname
       })

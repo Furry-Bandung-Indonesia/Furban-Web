@@ -324,7 +324,7 @@ class AuthApiService {
   /**
    * Get user public profile by UUID (any authenticated user)
    * Returns: uuid, email, nickname, legal_name, first_name, last_name,
-   *          date_of_birth, phone_number, profile_image_url, role
+   *          date_of_birth, social_link, profile_image_url, role
    */
   async getUserProfile(uuid) {
     return this.request(`/auth/users/${uuid}/profile`, { method: 'GET' });

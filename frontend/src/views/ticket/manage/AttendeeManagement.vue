@@ -223,8 +223,8 @@
                 <p class="text-sm text-white mt-1">{{ selectedAttendee.date_of_birth || '—' }}</p>
               </div>
               <div class="bg-slate-900 rounded-lg p-3">
-                <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Phone Number</p>
-                <p class="text-sm text-white mt-1">{{ selectedAttendee.phone_number || '—' }}</p>
+                <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Social Link Number</p>
+                <p class="text-sm text-white mt-1">{{ selectedAttendee.social_link || '—' }}</p>
               </div>
               <div class="bg-slate-900 rounded-lg p-3">
                 <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Nickname</p>
@@ -514,7 +514,7 @@
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">First Name</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.first_name || transferSelectedSender.first_name || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Last Name</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.last_name || transferSelectedSender.last_name || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Nickname</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.nickname || transferSelectedSender.nickname || '—' }}</p></div>
-                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Phone</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.phone_number || transferSelectedSender.phone_number || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Social Link</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.social_link || transferSelectedSender.social_link || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2 col-span-2"><p class="text-slate-500">Date of Birth</p><p class="text-slate-200 mt-0.5">{{ transferSenderProfile?.date_of_birth || transferSelectedSender.date_of_birth || '—' }}</p></div>
                 </div>
               </div>
@@ -538,11 +538,11 @@
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">First Name</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.first_name || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Last Name</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.last_name || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Nickname</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.nickname || '—' }}</p></div>
-                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Phone</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.phone_number || '—' }}</p></div>
+                  <div class="bg-slate-950/50 rounded p-2"><p class="text-slate-500">Social Link</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.social_link || '—' }}</p></div>
                   <div class="bg-slate-950/50 rounded p-2 col-span-2"><p class="text-slate-500">Date of Birth</p><p class="text-slate-200 mt-0.5">{{ transferReceiverProfile?.date_of_birth || '—' }}</p></div>
                 </div>
                 <p class="text-xs font-medium" :class="isReceiverProfileComplete ? 'text-green-400' : 'text-red-400'">
-                  {{ isReceiverProfileComplete ? 'Profile complete' : 'Profile incomplete: first name, last name, nickname, phone number, and date of birth are required' }}
+                  {{ isReceiverProfileComplete ? 'Profile complete' : 'Profile incomplete: first name, last name, nickname, Social Link number, and date of birth are required' }}
                 </p>
               </div>
               <p v-else class="text-xs text-slate-500">Select receiver first.</p>
@@ -797,7 +797,7 @@ const visiblePages = computed(() => {
 
 function isProfileComplete(profile) {
   if (!profile) return false
-  const required = ['first_name', 'last_name', 'nickname', 'phone_number', 'date_of_birth']
+  const required = ['first_name', 'last_name', 'nickname', 'social_link', 'date_of_birth']
   return required.every((key) => {
     const val = profile[key]
     return typeof val === 'string' ? val.trim().length > 0 : Boolean(val)

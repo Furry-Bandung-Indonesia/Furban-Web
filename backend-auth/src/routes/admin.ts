@@ -20,7 +20,7 @@ app.get('/users', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(`
       SELECT uuid, email, role, legal_name, nickname, first_name, last_name, 
-             date_of_birth, phone_number, profile_image_url, 
+             date_of_birth, social_link, profile_image_url, 
              is_active, pending_profile, created_at, updated_at
       FROM users 
       ORDER BY created_at DESC
@@ -141,7 +141,7 @@ app.put('/users/:uuid', async (c) => {
   try {
     const uuid = c.req.param('uuid')
     const currentUser = c.get('user')
-    const { email, role, legal_name, nickname, first_name, last_name, date_of_birth, phone_number, is_active, password } = await c.req.json()
+    const { email, role, legal_name, nickname, first_name, last_name, date_of_birth, social_link, is_active, password } = await c.req.json()
 
     // Check user exists
     const existing = await c.env.DB.prepare('SELECT * FROM users WHERE uuid = ?')
@@ -202,9 +202,9 @@ app.put('/users/:uuid', async (c) => {
       values.push(date_of_birth || null)
     }
 
-    if (phone_number !== undefined) {
-      updates.push('phone_number = ?')
-      values.push(phone_number || null)
+    if (social_link !== undefined) {
+      updates.push('social_link = ?')
+      values.push(social_link || null)
     }
 
     if (is_active !== undefined) {
@@ -238,7 +238,7 @@ app.put('/users/:uuid', async (c) => {
     // Fetch updated user
     const user = await c.env.DB.prepare(`
       SELECT uuid, email, role, legal_name, nickname, first_name, last_name, 
-             date_of_birth, phone_number, profile_image_url, 
+             date_of_birth, social_link, profile_image_url, 
              is_active, pending_profile, created_at, updated_at
       FROM users WHERE uuid = ?
     `).bind(uuid).first()

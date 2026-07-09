@@ -17,9 +17,9 @@ function isProfileComplete(profile: any): boolean {
   const firstName = typeof profile?.first_name === 'string' ? profile.first_name.trim() : ''
   const lastName = typeof profile?.last_name === 'string' ? profile.last_name.trim() : ''
   const nickname = typeof profile?.nickname === 'string' ? profile.nickname.trim() : ''
-  const phoneNumber = typeof profile?.phone_number === 'string' ? profile.phone_number.trim() : ''
+  const socialLink = typeof profile?.social_link === 'string' ? profile.social_link.trim() : ''
   const dateOfBirth = typeof profile?.date_of_birth === 'string' ? profile.date_of_birth.trim() : ''
-  return Boolean(firstName && lastName && nickname && phoneNumber && dateOfBirth)
+  return Boolean(firstName && lastName && nickname && socialLink && dateOfBirth)
 }
 
 /**
@@ -149,7 +149,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
 
     const { results } = await c.env.DB.prepare(`
       SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
-             t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
+             t.date_of_birth, t.social_link, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
              t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
       FROM tickets t
       JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
@@ -166,7 +166,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
       const placeholders = candidateUserIds.map(() => '?').join(', ')
       const { results: profiles } = await c.env.AUTH_DB.prepare(`
         SELECT uuid, email, legal_name, nickname, first_name, last_name,
-               date_of_birth, phone_number, profile_image_url, is_active
+               date_of_birth, social_link, profile_image_url, is_active
         FROM users
         WHERE uuid IN (${placeholders})
       `).bind(...candidateUserIds).all()
@@ -180,7 +180,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
           first_name: p.first_name,
           last_name: p.last_name,
           date_of_birth: p.date_of_birth,
-          phone_number: p.phone_number,
+          social_link: p.social_link,
           profile_image_url: p.profile_image_url,
           is_active: p.is_active === 1,
           complete_profile: isProfileComplete(p),
@@ -198,7 +198,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
 
   const { results } = await c.env.DB.prepare(`
     SELECT t.ticket_uuid, t.ticket_number, t.user_uuid, t.first_name, t.last_name, t.nickname,
-           t.date_of_birth, t.phone_number, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
+           t.date_of_birth, t.social_link, t.tier_uuid, t.food_selection, t.food_total, t.drink_selection, t.drink_total,
            t.purchase_status, t.created_at, tt.tier_name, tt.price_total as tier_price
     FROM tickets t
     JOIN ticket_tiers tt ON tt.tier_uuid = t.tier_uuid
@@ -215,7 +215,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
     const placeholders = candidateUserIds.map(() => '?').join(', ')
     const { results: profiles } = await c.env.AUTH_DB.prepare(`
       SELECT uuid, email, legal_name, nickname, first_name, last_name,
-             date_of_birth, phone_number, profile_image_url, is_active
+             date_of_birth, social_link, profile_image_url, is_active
       FROM users
       WHERE uuid IN (${placeholders})
     `).bind(...candidateUserIds).all()
@@ -229,7 +229,7 @@ attendees.get('/:eventId/attendees/transfer/senders', eventPermission('eventId')
         first_name: p.first_name,
         last_name: p.last_name,
         date_of_birth: p.date_of_birth,
-        phone_number: p.phone_number,
+        social_link: p.social_link,
         profile_image_url: p.profile_image_url,
         is_active: p.is_active === 1,
         complete_profile: isProfileComplete(p),
@@ -278,13 +278,13 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
 
   const senderProfile = await c.env.AUTH_DB.prepare(
     `SELECT uuid, email, legal_name, nickname, first_name, last_name,
-            date_of_birth, phone_number, profile_image_url, is_active
+            date_of_birth, social_link, profile_image_url, is_active
      FROM users WHERE uuid = ?`
   ).bind(ticket.user_uuid).first() as any
 
   const receiverProfile = await c.env.AUTH_DB.prepare(
     `SELECT uuid, email, legal_name, nickname, first_name, last_name,
-            date_of_birth, phone_number, profile_image_url, is_active
+            date_of_birth, social_link, profile_image_url, is_active
      FROM users WHERE uuid = ?`
   ).bind(receiverUserUuid).first() as any
 
@@ -293,8 +293,8 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
 
   if (!isProfileComplete(receiverProfile)) {
     return c.json({
-      message: 'Receiver profile is incomplete. Required: first_name, last_name, nickname, phone_number, date_of_birth.',
-      required_fields: ['first_name', 'last_name', 'nickname', 'phone_number', 'date_of_birth'],
+      message: 'Receiver profile is incomplete. Required: first_name, last_name, nickname, social_link, date_of_birth.',
+      required_fields: ['first_name', 'last_name', 'nickname', 'social_link', 'date_of_birth'],
       receiver_profile: {
         uuid: receiverProfile.uuid,
         email: receiverProfile.email,
@@ -302,7 +302,7 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
         first_name: receiverProfile.first_name,
         last_name: receiverProfile.last_name,
         date_of_birth: receiverProfile.date_of_birth,
-        phone_number: receiverProfile.phone_number,
+        social_link: receiverProfile.social_link,
         profile_image_url: receiverProfile.profile_image_url,
       },
     }, 400)
@@ -328,7 +328,7 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
 
   await c.env.DB.prepare(
     `UPDATE tickets
-     SET user_uuid = ?, first_name = ?, last_name = ?, nickname = ?, date_of_birth = ?, phone_number = ?, updated_at = ?
+     SET user_uuid = ?, first_name = ?, last_name = ?, nickname = ?, date_of_birth = ?, social_link = ?, updated_at = ?
      WHERE ticket_uuid = ? AND event_uuid = ?`
   ).bind(
     receiverUserUuid,
@@ -336,7 +336,7 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
     receiverProfile.last_name,
     receiverProfile.nickname,
     receiverProfile.date_of_birth,
-    receiverProfile.phone_number,
+    receiverProfile.social_link,
     now,
     ticketId,
     eventId,
@@ -366,7 +366,7 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
         first_name: senderProfile.first_name,
         last_name: senderProfile.last_name,
         date_of_birth: senderProfile.date_of_birth,
-        phone_number: senderProfile.phone_number,
+        social_link: senderProfile.social_link,
         profile_image_url: senderProfile.profile_image_url,
         complete_profile: isProfileComplete(senderProfile),
       } : null,
@@ -377,7 +377,7 @@ attendees.post('/:eventId/attendees/:ticketId/transfer', eventPermission('eventI
         first_name: receiverProfile.first_name,
         last_name: receiverProfile.last_name,
         date_of_birth: receiverProfile.date_of_birth,
-        phone_number: receiverProfile.phone_number,
+        social_link: receiverProfile.social_link,
         profile_image_url: receiverProfile.profile_image_url,
         complete_profile: true,
       },

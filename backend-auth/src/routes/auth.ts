@@ -430,7 +430,7 @@ app.post('/refresh', async (c) => {
 /**
  * NOTE: GET /auth/me is handled by profileRoutes (routes/profile.ts)
  * which returns the full user profile including first_name, last_name,
- * date_of_birth, phone_number, etc.
+ * date_of_birth, social_link, etc.
  */
 
 /**
@@ -585,7 +585,7 @@ app.get('/users/:uuid/profile', authMiddleware, async (c) => {
   try {
     const user = await c.env.DB.prepare(
       `SELECT uuid, email, nickname, legal_name, first_name, last_name,
-              date_of_birth, phone_number, profile_image_url, role
+              date_of_birth, social_link, profile_image_url, role
        FROM users WHERE uuid = ?`
     ).bind(uuid).first() as any
 
@@ -600,7 +600,7 @@ app.get('/users/:uuid/profile', authMiddleware, async (c) => {
         first_name: user.first_name,
         last_name: user.last_name,
         date_of_birth: user.date_of_birth,
-        phone_number: user.phone_number,
+        social_link: user.social_link,
         profile_image_url: user.profile_image_url,
         role: user.role,
       },

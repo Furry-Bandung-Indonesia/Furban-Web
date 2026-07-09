@@ -89,7 +89,7 @@ export class ModerationService {
    * Uses KV cache with 5-min TTL.
    *
    * Matching logic:
-   * - EXACT: email, phone_number (high confidence)
+   * - EXACT: email, social_link (high confidence)
    * - SIMILAR: legal_name, first_name, last_name, nickname (Levenshtein >= 80%)
    *
    * Skips entries that are disabled or dismissed for this specific user.
@@ -131,7 +131,7 @@ export class ModerationService {
     const inputLast = details.lastName?.trim().toLowerCase() || ''
     const inputNick = details.nickname?.trim().toLowerCase() || ''
     const inputEmail = details.email?.trim().toLowerCase() || ''
-    const inputPhone = details.phoneNumber?.replace(/\D/g, '') || ''
+    const inputSocial = details.phoneNumber?.replace(/\D/g, '') || ''
     const inputFullName = [inputFirst, inputLast].filter(Boolean).join(' ')
 
     for (const entry of list) {
@@ -155,10 +155,10 @@ export class ModerationService {
       }
 
       // Phone match (exact, digits only)
-      const entryPhone = (e.phone_number || '').replace(/\D/g, '')
-      if (entryPhone && inputPhone && entryPhone === inputPhone) {
+      const entrySocial = (e.social_link || '').replace(/\D/g, '')
+      if (entrySocial && inputSocial && entrySocial === inputSocial) {
         matchDetails.push({
-          field: 'phone_number', keyword_value: entryPhone, input_value: inputPhone,
+          field: 'social_link', keyword_value: entrySocial, input_value: inputSocial,
           detection_type: 'EXACT', similarity_score: 100,
         })
       }
@@ -273,7 +273,7 @@ export class ModerationService {
         `INSERT INTO moderation_attempt_log
          (attempt_uuid, event_uuid, moderation_uuid, masked_name, attempt_type,
           detection_type, similarity_score,
-          raw_legal_name, raw_nickname, raw_email, raw_phone,
+          raw_legal_name, raw_nickname, raw_email, raw_social,
           user_uuid, ticket_uuid, matched_fields, resolution)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
       )

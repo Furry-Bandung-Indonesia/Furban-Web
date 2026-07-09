@@ -70,8 +70,8 @@
                 <input v-model="form.date_of_birth" type="date" class="field-input" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-300 mb-1.5">Phone Number</label>
-                <input v-model="form.phone_number" type="tel" class="field-input" placeholder="+62 812 3456 7890" />
+                <label class="block text-sm font-medium text-slate-300 mb-1.5">Social Link</label>
+                <input v-model="form.social_link" type="tel" class="field-input" placeholder="+62 812 3456 7890" />
               </div>
             </div>
             <div>
@@ -201,7 +201,7 @@ const form = ref({
   first_name: '',
   last_name: '',
   date_of_birth: '',
-  phone_number: '',
+  social_link: '',
   nickname: ''
 })
 const saving = ref(false)
@@ -219,7 +219,7 @@ const initForm = () => {
       first_name: user.value.first_name || '',
       last_name: user.value.last_name || '',
       date_of_birth: user.value.date_of_birth || '',
-      phone_number: user.value.phone_number || '',
+      social_link: user.value.social_link || '',
       nickname: user.value.nickname || ''
     }
   }

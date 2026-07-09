@@ -643,7 +643,7 @@ onMounted(async () => {
 
     // If personal info is incomplete, redirect back to Step 1 (fill form)
     if (data.purchase_status === 'under_payment') {
-      const infoComplete = data.first_name?.trim() && data.nickname?.trim() && data.date_of_birth && data.phone_number?.trim()
+      const infoComplete = data.first_name?.trim() && data.nickname?.trim() && data.date_of_birth && data.social_link?.trim()
       if (!infoComplete) {
         router.replace(`/event/ticket/${route.params.ticketId}/fill`)
         return
