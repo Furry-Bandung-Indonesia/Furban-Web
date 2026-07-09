@@ -328,42 +328,6 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     drinkTotal = calculateFoodTotal(drinkSelNorm, drinkOpts)
   }
 
-  // ─── Voucher validation & discount ──────────────
-  let voucherUuid: string | null = null
-  let discountAmount = 0
-
-  if (voucher_code) {
-    const rawCode = String(voucher_code).trim()
-    const voucher = await c.env.DB.prepare(
-      `SELECT * FROM event_vouchers
-       WHERE event_uuid = ? AND UPPER(code) = UPPER(?) AND is_active = 1`
-    ).bind(eventId, rawCode).first() as VoucherRow | null
-
-    if (!voucher) {
-      return c.json({ message: 'Invalid or inactive voucher code' }, 400)
-    }
-    if (voucher.uses_count >= voucher.max_uses) {
-      return c.json({ message: 'This voucher has already been fully redeemed' }, 400)
-    }
-
-    // Compute discount on full subtotal (tier + food + drink)
-    const subtotal = tier.price_total + foodTotal + drinkTotal
-    if (voucher.discount_type === 'fixed') {
-      discountAmount = Math.min(voucher.discount_value, subtotal)
-    } else {
-      discountAmount = Math.floor((voucher.discount_value / 100) * subtotal)
-    }
-    voucherUuid = voucher.voucher_uuid
-
-    // Atomically consume one use — WHERE guard prevents over-redemption
-    const now_v = new Date().toISOString()
-    await c.env.DB.prepare(
-      `UPDATE event_vouchers
-       SET uses_count = uses_count + 1, updated_at = ?
-       WHERE voucher_uuid = ? AND uses_count < max_uses`
-    ).bind(now_v, voucherUuid).run()
-  }
-
   // ─── Create ticket + hold ────────────────────────
   const ticketUuid = crypto.randomUUID()
   // NOTE: ticket_number is NOT assigned here — it is issued only upon successful payment
@@ -387,12 +351,10 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
         return c.json({ message: `bid_price must be at least ${tier.price_total}` }, 400)
       }
       bidPrice = rawBid
-      // Formula: final = max(bid_price, tier_price + food_total + drink_total) - discount
-      totalAmount = Math.max(0, Math.max(bidPrice, tier.price_total + foodTotal + drinkTotal) - discountAmount)
+      // Formula: final = max(bid_price, tier_price + food_total + drink_total)
+      totalAmount = Math.max(0, Math.max(bidPrice, tier.price_total + foodTotal + drinkTotal))
     }
     // If no bid_price provided, it will be set on the fill page
-  } else {
-    totalAmount = Math.max(0, totalAmount - discountAmount)
   }
 
   // Create ticket (ticket_number = NULL until payment)
@@ -411,7 +373,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal, JSON.stringify(drinkSelNorm), drinkTotal,
     bidPrice,
     food_notes?.trim() || null,
-    voucherUuid, discountAmount,
+    null, 0, // voucher_uuid, discount_amount (initially null/0, set later during updateMyTicket)
     claimExpiry, now, now,
   ).run()
 
@@ -442,8 +404,8 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
       price_total: totalAmount,
       food_total: foodTotal,
       bid_price: bidPrice,
-      voucher_code: voucherUuid ? voucher_code : null,
-      discount_amount: discountAmount,
+      voucher_code: null,
+      discount_amount: 0,
       first_name,
       last_name,
       nickname,
@@ -586,19 +548,74 @@ tickets.put('/tickets/:ticketId', async (c) => {
     updates.push('food_notes = ?'); values.push(body.food_notes?.trim() || null)
   }
 
-  if (updates.length === 0) return c.json({ message: 'No fields to update' }, 400)
+  // ─── Voucher handling ──────────────────────────────────────────
+  let finalVoucherUuid = ticket.voucher_uuid
+  let currentDiscount = ticket.discount_amount || 0
 
-  updates.push('updated_at = ?')
-  values.push(new Date().toISOString())
-  values.push(ticketId)
-  values.push(user.sub)
+  if (body.voucher_code !== undefined) {
+    if (!body.voucher_code) {
+      // Remove voucher
+      if (ticket.voucher_uuid) {
+        await c.env.DB.prepare(
+          'UPDATE event_vouchers SET uses_count = MAX(0, uses_count - 1), updated_at = ? WHERE voucher_uuid = ?'
+        ).bind(new Date().toISOString(), ticket.voucher_uuid).run()
+        updates.push('voucher_uuid = NULL')
+        updates.push('discount_amount = 0')
+        finalVoucherUuid = null
+        currentDiscount = 0
+      }
+    } else {
+      const rawCode = String(body.voucher_code).trim()
+      const voucher = await c.env.DB.prepare(
+        `SELECT * FROM event_vouchers WHERE event_uuid = ? AND UPPER(code) = UPPER(?) AND is_active = 1`
+      ).bind(ticket.event_uuid, rawCode).first() as VoucherRow | null
 
-  await c.env.DB.prepare(
-    `UPDATE tickets SET ${updates.join(', ')} WHERE ticket_uuid = ? AND user_uuid = ?`
-  ).bind(...values).run()
+      if (!voucher) {
+        return c.json({ message: 'Invalid or inactive voucher code' }, 400)
+      }
 
-  // If food, drink, or bid_price changed, update purchase_log amount to reflect new total
-  if (body.food_selection !== undefined || body.drink_selection !== undefined || body.bid_price !== undefined) {
+      if (ticket.voucher_uuid !== voucher.voucher_uuid) {
+        if (voucher.uses_count >= voucher.max_uses) {
+          return c.json({ message: 'This voucher has already been fully redeemed' }, 400)
+        }
+
+        // Refund old voucher if it existed
+        if (ticket.voucher_uuid) {
+          await c.env.DB.prepare(
+            'UPDATE event_vouchers SET uses_count = MAX(0, uses_count - 1), updated_at = ? WHERE voucher_uuid = ?'
+          ).bind(new Date().toISOString(), ticket.voucher_uuid).run()
+        }
+
+        // Consume new voucher
+        await c.env.DB.prepare(
+          'UPDATE event_vouchers SET uses_count = uses_count + 1, updated_at = ? WHERE voucher_uuid = ? AND uses_count < max_uses'
+        ).bind(new Date().toISOString(), voucher.voucher_uuid).run()
+        
+        updates.push('voucher_uuid = ?'); values.push(voucher.voucher_uuid)
+        finalVoucherUuid = voucher.voucher_uuid
+      }
+    }
+  }
+
+  // ─── Total Amount Calculation ──────────────────────────────────
+  let requireTotalUpdate = false
+  if (body.food_selection !== undefined || body.drink_selection !== undefined || body.bid_price !== undefined || body.voucher_code !== undefined) {
+    requireTotalUpdate = true
+  }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = ?')
+    values.push(new Date().toISOString())
+    values.push(ticketId)
+    values.push(user.sub)
+
+    await c.env.DB.prepare(
+      `UPDATE tickets SET ${updates.join(', ')} WHERE ticket_uuid = ? AND user_uuid = ?`
+    ).bind(...values).run()
+  }
+
+  // Calculate new total and set in purchase log & tickets (discount_amount)
+  if (requireTotalUpdate) {
     const tier = await c.env.DB.prepare(
       'SELECT price_total FROM ticket_tiers WHERE tier_uuid = ?'
     ).bind(ticket.tier_uuid).first() as { price_total: number } | null
@@ -611,8 +628,35 @@ tickets.put('/tickets/:ticketId', async (c) => {
     const foodTotal = updatedTicket?.food_total || 0
     const drinkTotal = updatedTicket?.drink_total || 0
     const bidPrice = updatedTicket?.bid_price
+    
     // Name Your Price: max(bid_price, tier_price + food_total + drink_total)
-    const newAmount = bidPrice ? Math.max(bidPrice, tierPrice + foodTotal + drinkTotal) : (tierPrice + foodTotal + drinkTotal)
+    let subtotal = tierPrice + foodTotal + drinkTotal
+    if (bidPrice) {
+      subtotal = Math.max(bidPrice, subtotal)
+    }
+
+    // Apply voucher discount if present
+    let newDiscount = 0
+    if (finalVoucherUuid) {
+      const voucher = await c.env.DB.prepare(
+        'SELECT discount_type, discount_value FROM event_vouchers WHERE voucher_uuid = ?'
+      ).bind(finalVoucherUuid).first() as { discount_type: string, discount_value: number } | null
+
+      if (voucher) {
+        if (voucher.discount_type === 'fixed') {
+          newDiscount = Math.min(voucher.discount_value, subtotal)
+        } else {
+          newDiscount = Math.floor((voucher.discount_value / 100) * subtotal)
+        }
+      }
+    }
+
+    const newAmount = Math.max(0, subtotal - newDiscount)
+
+    await c.env.DB.prepare(
+      `UPDATE tickets SET discount_amount = ?, updated_at = ? WHERE ticket_uuid = ?`
+    ).bind(newDiscount, new Date().toISOString(), ticketId).run()
+
     await c.env.DB.prepare(
       `UPDATE purchase_log SET amount_paid = ?, updated_at = ? WHERE ticket_uuid = ? AND user_uuid = ?`
     ).bind(newAmount, new Date().toISOString(), ticketId, user.sub).run()
@@ -843,6 +887,13 @@ async function expireTicket(db: D1Database, kv: KVNamespace, ticket: TicketRow) 
   await db.prepare(
     `UPDATE purchase_log SET payment_status = 'expired', updated_at = ? WHERE ticket_uuid = ?`
   ).bind(now, ticket.ticket_uuid).run()
+
+  // Restore voucher use
+  if (ticket.voucher_uuid) {
+    await db.prepare(
+      'UPDATE event_vouchers SET uses_count = MAX(0, uses_count - 1), updated_at = ? WHERE voucher_uuid = ?'
+    ).bind(now, ticket.voucher_uuid).run()
+  }
 
   // Clean KV
   const kvService = new KVService(kv)
