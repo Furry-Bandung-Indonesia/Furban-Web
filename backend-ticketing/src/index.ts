@@ -26,6 +26,7 @@ import { permissions } from './routes/permissions'
 import { revenue } from './routes/revenue'
 import { manage } from './routes/manage'
 import { payment } from './routes/payment'
+import { vouchers } from './routes/vouchers'
 
 // Queue consumer
 import { handleEmailQueue } from './queue/emailConsumer'
@@ -131,6 +132,12 @@ app.route('/api/manage', payment)
 
 // Payment public + callback routes (no /manage prefix)
 app.route('/api/payment', payment)
+
+// Voucher public validate (no /manage prefix)
+app.route('/api', vouchers)
+
+// Voucher admin CRUD (under /manage)
+app.route('/api/manage', vouchers)
 
 // ═══════════════════════════════════════════════════
 // ERROR HANDLING

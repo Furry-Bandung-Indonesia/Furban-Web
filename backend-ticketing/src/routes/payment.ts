@@ -12,6 +12,7 @@ import { Hono } from 'hono'
 import type { Bindings, Variables, JWTPayload, PaymentChannelRow, PaymentTransactionRow, EventFinancialRow } from '../types'
 import { authMiddleware, eventPermission } from '../middleware/auth'
 import { expireSingleTicket } from '../services/ticketExpiry'
+import { KVService } from '../services/kv'
 
 const payment = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -250,10 +251,10 @@ payment.post('/generate', authMiddleware, async (c) => {
   // If a ticket is attached, verify it hasn't expired by time
   if (ticket_uuid) {
     const ticket = await c.env.DB.prepare(
-      `SELECT t.ticket_uuid, t.purchase_status, t.claim_expiry,
-              CASE WHEN t.bid_price IS NOT NULL 
-                THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0))
-                ELSE (tt.price_total + COALESCE(t.food_total, 0)) 
+      `SELECT t.ticket_uuid, t.purchase_status, t.claim_expiry, t.event_uuid, t.user_uuid,
+              CASE WHEN t.bid_price IS NOT NULL
+                THEN MAX(0, MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0)) - COALESCE(t.discount_amount, 0))
+                ELSE MAX(0, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0) - COALESCE(t.discount_amount, 0))
               END as computed_nominal
        FROM tickets t
        JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid
@@ -270,6 +271,18 @@ payment.post('/generate', authMiddleware, async (c) => {
     // OVERRIDE client given nominal amount securely with server calculated formula
     // This utilizes SQLite directly in D1, dropping CPU usage drastically avoiding JS Object parsing computation
     nominal = Number(ticket.computed_nominal)
+
+    // ─── Free ticket fast-path (voucher made it 100% free) ───────────
+    if (nominal === 0) {
+      const now = new Date().toISOString()
+      await markTicketPaid(c.env.DB, ticket_uuid, ticket.event_uuid, 'VOUCHER_FREE', now)
+      // Release KV holds
+      const kvService = new KVService(c.env.KV)
+      await kvService.deleteClaimHold(ticket.user_uuid, ticket.event_uuid)
+      await kvService.deletePaymentLock(ticket_uuid)
+      return c.json({ paid_free: true, ticket_uuid, message: 'Voucher applied — ticket is free!' })
+    }
+
     if (ticket.claim_expiry && new Date(ticket.claim_expiry) < new Date()) {
       await expireSingleTicket(c.env.DB, c.env.KV, ticket_uuid)
       return c.json({ message: 'Ticket claim has expired. Please claim a new ticket.' }, 410)

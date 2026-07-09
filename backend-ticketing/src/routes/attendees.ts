@@ -549,8 +549,8 @@ attendees.post('/:eventId/checkin/verify', eventPermission('eventId'), async (c)
 
   // Get event food_options for price lookup
   const event = await c.env.DB.prepare(
-    'SELECT food_enabled, food_options FROM events WHERE event_uuid = ?'
-  ).bind(eventId).first() as { food_enabled: number; food_options: string } | null
+    'SELECT food_enabled, food_options, drinks_enabled, drink_options FROM events WHERE event_uuid = ?'
+  ).bind(eventId).first() as { food_enabled: number; food_options: string; drinks_enabled: number; drink_options: string } | null
 
   // Check moderation status — ONLY from admin-CONFIRMED attempts, not raw keyword matches.
   // Global scope: a confirmed ban from ANY event applies everywhere.

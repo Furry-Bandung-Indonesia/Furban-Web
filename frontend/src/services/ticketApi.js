@@ -650,6 +650,76 @@ class TicketApiService {
   }
 
   // ═══════════════════════════════════════════════════
+  // VOUCHERS
+  // ═══════════════════════════════════════════════════
+
+  /**
+   * Validate a voucher code for a specific tier — previews discount without consuming it.
+   * @param {string} eventId
+   * @param {Object} body - { code, tier_uuid }
+   */
+  async validateVoucher(eventId, body) {
+    return this.request(`/api/events/${eventId}/vouchers/validate`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
+  /**
+   * List all vouchers for an event (ADMIN + HOST).
+   * @param {string} eventId
+   */
+  async getVouchers(eventId) {
+    return this.request(`/api/manage/${eventId}/vouchers`)
+  }
+
+  /**
+   * Create a new voucher (ADMIN only).
+   * @param {string} eventId
+   * @param {Object} body - { code, discount_type, discount_value, max_uses, is_active? }
+   */
+  async createVoucher(eventId, body) {
+    return this.request(`/api/manage/${eventId}/vouchers`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
+  /**
+   * Update a voucher (ADMIN only).
+   * @param {string} eventId
+   * @param {string} voucherId
+   * @param {Object} body - { code?, discount_type?, discount_value?, max_uses?, is_active? }
+   */
+  async updateVoucher(eventId, voucherId, body) {
+    return this.request(`/api/manage/${eventId}/vouchers/${voucherId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
+  }
+
+  /**
+   * Delete a voucher (ADMIN only — only if uses_count = 0).
+   * @param {string} eventId
+   * @param {string} voucherId
+   */
+  async deleteVoucher(eventId, voucherId) {
+    return this.request(`/api/manage/${eventId}/vouchers/${voucherId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  /**
+   * Get usage details for a specific voucher (ADMIN only).
+   * Returns list of tickets that used this voucher.
+   * @param {string} eventId
+   * @param {string} voucherId
+   */
+  async getVoucherUsages(eventId, voucherId) {
+    return this.request(`/api/manage/${eventId}/vouchers/${voucherId}/usages`)
+  }
+
+  // ═══════════════════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════════════════
 

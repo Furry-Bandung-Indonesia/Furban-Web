@@ -9,7 +9,7 @@
  * Also handles ticket retrieval for users (My Tickets / Purchase History).
  */
 import { Hono } from 'hono'
-import type { Bindings, Variables, JWTPayload, TicketRow, EventRow, TierRow } from '../types'
+import type { Bindings, Variables, JWTPayload, TicketRow, EventRow, TierRow, VoucherRow } from '../types'
 import { authMiddleware } from '../middleware/auth'
 import { rateLimiter } from '../middleware/rateLimiter'
 import { KVService } from '../services/kv'
@@ -94,7 +94,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
   const eventId = c.req.param('eventId')
   const body = await c.req.json()
 
-  const { tier_uuid, first_name, last_name, nickname, date_of_birth, social_link, is_fursuiter, food_selection, drink_selection, food_notes, turnstile_token } = body
+  const { tier_uuid, first_name, last_name, nickname, date_of_birth, social_link, is_fursuiter, food_selection, drink_selection, food_notes, turnstile_token, voucher_code } = body
 
   // ─── Validate input ──────────────────────────────
   if (!tier_uuid || !first_name) {
@@ -328,6 +328,42 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     drinkTotal = calculateFoodTotal(drinkSelNorm, drinkOpts)
   }
 
+  // ─── Voucher validation & discount ──────────────
+  let voucherUuid: string | null = null
+  let discountAmount = 0
+
+  if (voucher_code) {
+    const rawCode = String(voucher_code).trim()
+    const voucher = await c.env.DB.prepare(
+      `SELECT * FROM event_vouchers
+       WHERE event_uuid = ? AND UPPER(code) = UPPER(?) AND is_active = 1`
+    ).bind(eventId, rawCode).first() as VoucherRow | null
+
+    if (!voucher) {
+      return c.json({ message: 'Invalid or inactive voucher code' }, 400)
+    }
+    if (voucher.uses_count >= voucher.max_uses) {
+      return c.json({ message: 'This voucher has already been fully redeemed' }, 400)
+    }
+
+    // Compute discount on full subtotal (tier + food + drink)
+    const subtotal = tier.price_total + foodTotal + drinkTotal
+    if (voucher.discount_type === 'fixed') {
+      discountAmount = Math.min(voucher.discount_value, subtotal)
+    } else {
+      discountAmount = Math.floor((voucher.discount_value / 100) * subtotal)
+    }
+    voucherUuid = voucher.voucher_uuid
+
+    // Atomically consume one use — WHERE guard prevents over-redemption
+    const now_v = new Date().toISOString()
+    await c.env.DB.prepare(
+      `UPDATE event_vouchers
+       SET uses_count = uses_count + 1, updated_at = ?
+       WHERE voucher_uuid = ? AND uses_count < max_uses`
+    ).bind(now_v, voucherUuid).run()
+  }
+
   // ─── Create ticket + hold ────────────────────────
   const ticketUuid = crypto.randomUUID()
   // NOTE: ticket_number is NOT assigned here — it is issued only upon successful payment
@@ -351,10 +387,12 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
         return c.json({ message: `bid_price must be at least ${tier.price_total}` }, 400)
       }
       bidPrice = rawBid
-      // Formula: final = max(bid_price, tier_price + food_total + drink_total)
-      totalAmount = Math.max(bidPrice, tier.price_total + foodTotal + drinkTotal)
+      // Formula: final = max(bid_price, tier_price + food_total + drink_total) - discount
+      totalAmount = Math.max(0, Math.max(bidPrice, tier.price_total + foodTotal + drinkTotal) - discountAmount)
     }
     // If no bid_price provided, it will be set on the fill page
+  } else {
+    totalAmount = Math.max(0, totalAmount - discountAmount)
   }
 
   // Create ticket (ticket_number = NULL until payment)
@@ -363,8 +401,9 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
      (ticket_uuid, event_uuid, tier_uuid, user_uuid, ticket_number,
       first_name, last_name, nickname, date_of_birth, social_link,
       is_fursuiter, food_selection, food_total, drink_selection, drink_total, bid_price, food_notes,
+      voucher_uuid, discount_amount,
       purchase_status, claim_expiry, created_at, updated_at)
-     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
+     VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'under_payment', ?, ?, ?)`
   ).bind(
     ticketUuid, eventId, tier_uuid, user.sub,
     first_name, last_name || null, nickname || null,
@@ -372,6 +411,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     is_fursuiter ? 1 : 0, JSON.stringify(foodSelNorm), foodTotal, JSON.stringify(drinkSelNorm), drinkTotal,
     bidPrice,
     food_notes?.trim() || null,
+    voucherUuid, discountAmount,
     claimExpiry, now, now,
   ).run()
 
@@ -402,6 +442,8 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
       price_total: totalAmount,
       food_total: foodTotal,
       bid_price: bidPrice,
+      voucher_code: voucherUuid ? voucher_code : null,
+      discount_amount: discountAmount,
       first_name,
       last_name,
       nickname,

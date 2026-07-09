@@ -106,6 +106,23 @@ export interface TicketRow {
   revoke_reason: string | null
   revoked_by: string | null
   revoked_at: string | null
+  voucher_uuid: string | null    // Applied discount voucher
+  discount_amount: number        // IDR amount deducted from total
+  created_at: string
+  updated_at: string
+}
+
+// ─── Voucher ───────────────────────────────────────
+export interface VoucherRow {
+  voucher_uuid: string
+  event_uuid: string
+  code: string
+  discount_type: 'fixed' | 'percent'
+  discount_value: number
+  max_uses: number
+  uses_count: number
+  is_active: number   // 1=enabled, 0=disabled
+  created_by: string
   created_at: string
   updated_at: string
 }

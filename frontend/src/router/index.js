@@ -232,6 +232,11 @@ const router = createRouter({
           name: 'manage-event-financials',
           component: lazyLoad(() => import('../views/ticket/manage/EventFinancials.vue')),
         },
+        {
+          path: ':eventId/voucher',
+          name: 'manage-event-vouchers',
+          component: lazyLoad(() => import('../views/ticket/manage/VoucherManagement.vue')),
+        },
       ],
     },
     // Legacy redirects

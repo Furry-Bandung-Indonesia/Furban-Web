@@ -234,6 +234,33 @@
 
             <!-- Checkout CTA (Desktop) -->
             <div v-if="selectedTier && !existingTicket && !salesBlocked" class="mt-6 bg-[#111827] p-6 rounded-xl border border-[#1f2937] hidden lg:block">
+              <!-- Voucher Input -->
+              <div class="mb-4 pb-4 border-b border-white/5">
+                <label class="text-sm text-[#94a3b8] mb-2 block font-medium">Have a voucher code?</label>
+                <div class="flex gap-2">
+                  <input
+                    v-model="voucherCode"
+                    @keyup.enter="applyVoucher"
+                    :disabled="!!voucherData || voucherLoading"
+                    placeholder="ENTER CODE..."
+                    class="flex-1 bg-[#0a0e17] border border-[#2d3748] rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-[#4b5563] focus:outline-none focus:border-[#0df2f2] uppercase tracking-wider font-mono"
+                  />
+                  <button v-if="!voucherData" @click="applyVoucher" :disabled="voucherLoading || !voucherCode.trim()"
+                    class="px-4 py-2.5 rounded-lg bg-[#1f2937] border border-[#2d3748] text-sm font-medium text-white hover:border-[#0df2f2] hover:text-[#0df2f2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ voucherLoading ? '...' : 'Apply' }}
+                  </button>
+                  <button v-else @click="voucherData = null; voucherCode = ''"
+                    class="px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 hover:bg-red-500/20 transition-colors">
+                    Remove
+                  </button>
+                </div>
+                <p v-if="voucherError" class="text-red-400 text-xs mt-1.5">{{ voucherError }}</p>
+                <div v-if="voucherData" class="mt-2 text-xs text-green-400 flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                  Voucher applied: <span class="font-bold font-mono">{{ voucherData.code }}</span> (-{{ voucherData.discount_type === 'percent' ? voucherData.discount_value + '%' : 'IDR ' + voucherData.discount_amount.toLocaleString('id-ID') }})
+                </div>
+              </div>
+
               <!-- Turnstile Widget -->
               <div class="flex justify-center mb-4">
                 <div ref="turnstileDesktopRef"></div>
@@ -363,6 +390,32 @@
         v-if="selectedTier && !existingTicket && !salesBlocked"
         class="fixed bottom-0 left-0 right-0 bg-[#111827] border-t border-[#1f2937] p-4 lg:hidden z-40"
       >
+        <!-- Voucher Input Mobile -->
+        <div class="mb-3 pb-3 border-b border-white/5">
+          <div class="flex gap-2">
+            <input
+              v-model="voucherCode"
+              @keyup.enter="applyVoucher"
+              :disabled="!!voucherData || voucherLoading"
+              placeholder="VOUCHER CODE"
+              class="flex-1 bg-[#0a0e17] border border-[#2d3748] rounded-lg px-3 py-1.5 text-white text-xs placeholder:text-[#4b5563] focus:outline-none focus:border-[#0df2f2] uppercase tracking-wider font-mono"
+            />
+            <button v-if="!voucherData" @click="applyVoucher" :disabled="voucherLoading || !voucherCode.trim()"
+              class="px-3 py-1.5 rounded-lg bg-[#1f2937] border border-[#2d3748] text-xs font-medium text-white hover:border-[#0df2f2] hover:text-[#0df2f2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ voucherLoading ? '...' : 'Apply' }}
+            </button>
+            <button v-else @click="voucherData = null; voucherCode = ''"
+              class="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 hover:bg-red-500/20 transition-colors">
+              Remove
+            </button>
+          </div>
+          <p v-if="voucherError" class="text-red-400 text-[10px] mt-1">{{ voucherError }}</p>
+          <div v-if="voucherData" class="mt-1 text-[10px] text-green-400 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            Voucher: <span class="font-bold font-mono">{{ voucherData.code }}</span> (-{{ voucherData.discount_type === 'percent' ? voucherData.discount_value + '%' : 'IDR ' + voucherData.discount_amount.toLocaleString('id-ID') }})
+          </div>
+        </div>
+
         <!-- Turnstile Widget Mobile -->
         <div class="flex justify-center mb-3">
           <div ref="turnstileMobileRef"></div>
@@ -422,6 +475,12 @@ export default {
     let turnstileDesktopId = null
     let turnstileMobileId = null
 
+    // Voucher System state
+    const voucherCode = ref('')
+    const voucherData = ref(null)
+    const voucherError = ref(null)
+    const voucherLoading = ref(false)
+
     const TURNSTILE_SITE_KEY = '0x4AAAAAACYz8MBTSm0NXSvb'
 
     function renderTurnstileWidgets() {
@@ -461,9 +520,22 @@ export default {
       return tiers.value.some(t => t.quota_available > 0 && t.quota_available <= t.quota_total * 0.2)
     })
 
+    const discountedPrice = computed(() => {
+      if (!selectedTierData.value) return 0
+      const subtotal = selectedTierData.value.price_total
+      if (voucherData.value) {
+        if (voucherData.value.discount_type === 'fixed') {
+          return Math.max(0, subtotal - voucherData.value.discount_value)
+        } else if (voucherData.value.discount_type === 'percent') {
+          return Math.max(0, subtotal - Math.floor((voucherData.value.discount_value / 100) * subtotal))
+        }
+      }
+      return subtotal
+    })
+
     const displayTotal = computed(() => {
       if (!selectedTierData.value) return ''
-      const amount = selectedTierData.value.price_total
+      const amount = discountedPrice.value
       return amount === 0 ? 'FREE' : 'IDR ' + amount.toLocaleString('id-ID')
     })
 
@@ -674,6 +746,24 @@ export default {
       }
     }
 
+    async function applyVoucher() {
+      if (!voucherCode.value.trim() || !selectedTier.value) return
+      voucherLoading.value = true
+      voucherError.value = null
+      voucherData.value = null
+      try {
+        const data = await ticketApi.validateVoucher(route.params.eventId, {
+          code: voucherCode.value.trim(),
+          tier_uuid: selectedTier.value
+        })
+        voucherData.value = data
+      } catch (err) {
+        voucherError.value = err.message || 'Invalid voucher code'
+      } finally {
+        voucherLoading.value = false
+      }
+    }
+
     async function proceedToClaim() {
       if (!selectedTier.value) return
       if (existingTicket.value) return
@@ -700,6 +790,7 @@ export default {
           nickname: authStore.user?.nickname || '',
           is_fursuiter: false,
           turnstile_token: turnstileToken.value,
+          voucher_code: voucherData.value?.code || undefined,
         }
 
         // Claim ticket immediately — slot is reserved, timer starts
@@ -728,6 +819,9 @@ export default {
 
     // Render Turnstile when tier is selected
     watch(selectedTier, (val) => {
+      voucherData.value = null
+      voucherError.value = null
+      voucherCode.value = ''
       if (val) {
         nextTick(() => renderTurnstileWidgets())
       } else {
@@ -778,6 +872,7 @@ export default {
       selectedTier,
       selectedTierData,
       hasLowStock,
+      discountedPrice,
       displayTotal,
       isBestValue,
       getEventImage,
@@ -803,6 +898,12 @@ export default {
       salesBannerClass,
       salesIconBgClass,
       salesTitleClass,
+      // Voucher
+      voucherCode,
+      voucherData,
+      voucherError,
+      voucherLoading,
+      applyVoucher,
     }
   }
 }
