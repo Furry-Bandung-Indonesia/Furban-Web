@@ -137,7 +137,7 @@
                     {{ event.event_name }}
                   </h2>
                 </div>
-                <p class="text-[#94a3b8] line-clamp-2">{{ event.description }}</p>
+                <p class="text-[#94a3b8] line-clamp-2">{{ stripHtml(event.description) }}</p>
               </div>
 
               <!-- Info Grid -->
@@ -256,6 +256,13 @@ export default {
       return false
     }
 
+    function stripHtml(html) {
+      if (!html) return '';
+      const tmp = document.createElement("DIV");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "";
+    }
+
     function getEventImage(filename) {
       return ticketApi.getEventImageUrl(filename)
     }
@@ -325,6 +332,7 @@ export default {
       getLowestPrice,
       debouncedSearch,
       loadEvents,
+      stripHtml,
     }
   }
 }
