@@ -1,5 +1,5 @@
-// v2 - cache bust 2026-07-09 - trigger deploy
-const _buildVer = 'v2.1'
+// v3 - guaranteed cache bust
+console.log('Furban build version 2026-07-09-v3')
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
