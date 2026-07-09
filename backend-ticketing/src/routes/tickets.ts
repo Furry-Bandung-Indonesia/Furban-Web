@@ -236,7 +236,7 @@ tickets.post('/events/:eventId/claim', rateLimiter('claim', 10, 60), async (c) =
     lastName: last_name || '',
     nickname: nickname || '',
     email: user.email || '',
-    phoneNumber: social_link || '',
+    socialLink: social_link || '',
   }, user.sub)
 
   if (modResult.match) {

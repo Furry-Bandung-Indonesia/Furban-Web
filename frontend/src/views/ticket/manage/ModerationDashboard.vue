@@ -85,7 +85,7 @@
                   </div>
                   <input v-model="searchQuery" @input="debouncedLoad"
                     class="block w-full rounded-lg border-0 py-2.5 pl-10 text-white bg-slate-900 ring-1 ring-inset ring-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-[#0df2f2] sm:text-sm"
-                    placeholder="Search by name, nickname, email, phone..." />
+                    placeholder="Search by name, nickname, email, Social Link..." />
                 </div>
                 <select v-model="typeFilter" @change="loadKeywords(1)" class="rounded-lg bg-slate-800 px-3 py-2.5 text-sm font-medium text-slate-200 ring-1 ring-inset ring-slate-700 border-0 focus:ring-[#0df2f2]">
                   <option value="">All Types</option>
@@ -140,7 +140,7 @@
                       <td class="px-5 py-3.5">
                         <div class="flex flex-wrap gap-1">
                           <span v-if="mod.email" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">email</span>
-                          <span v-if="mod.social_link" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">phone</span>
+                          <span v-if="mod.social_link" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">Social Link</span>
                           <span v-if="mod.first_name || mod.last_name" class="inline-flex items-center rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">name</span>
                           <span v-if="!mod.email && !mod.social_link && !mod.first_name && !mod.last_name" class="text-[10px] text-slate-500">legal only</span>
                         </div>
@@ -240,7 +240,7 @@
                           <p class="text-sm text-white mt-0.5 break-all">{{ selectedEntry.email || '—' }}</p>
                         </div>
                         <div class="bg-slate-900 rounded-lg p-2.5">
-                          <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Phone</p>
+                          <p class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Social Link</p>
                           <p class="text-sm text-white mt-0.5">{{ selectedEntry.social_link || '—' }}</p>
                         </div>
                       </div>
@@ -638,7 +638,7 @@
           </button>
         </div>
         <form @submit.prevent="saveEntry" class="p-6 space-y-4">
-          <p class="text-xs text-slate-400 -mt-2 mb-2">Fill in keyword fields. Email/phone triggers EXACT detection; names use similarity matching (Levenshtein ≥80%).</p>
+          <p class="text-xs text-slate-400 -mt-2 mb-2">Fill in keyword fields. Email/Social Link triggers EXACT detection; names use similarity matching (Levenshtein ≥80%).</p>
           <div class="grid grid-cols-2 gap-4">
             <div class="col-span-2">
               <label class="block text-sm font-medium text-slate-300 mb-1">Legal Name (Full Name) *</label>
@@ -661,7 +661,7 @@
               <input v-model="modalForm.email" type="email" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-slate-300 mb-1">Phone Number <span class="text-[10px] text-slate-500">(exact match)</span></label>
+              <label class="block text-sm font-medium text-slate-300 mb-1">Social Link <span class="text-[10px] text-slate-500">(exact match)</span></label>
               <input v-model="modalForm.social_link" class="w-full h-11 px-4 rounded-lg border-0 bg-slate-900 text-white ring-1 ring-slate-700 focus:ring-2 focus:ring-[#0df2f2] text-sm" />
             </div>
             <div>
@@ -843,9 +843,9 @@
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider">Email</p>
                 <p class="text-sm text-slate-300">{{ suspectDetailTarget.raw_email }}</p>
               </div>
-              <div v-if="suspectDetailTarget.raw_phone">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Phone</p>
-                <p class="text-sm text-slate-300">{{ suspectDetailTarget.raw_phone }}</p>
+              <div v-if="suspectDetailTarget.raw_social">
+                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Social Link</p>
+                <p class="text-sm text-slate-300">{{ suspectDetailTarget.raw_social }}</p>
               </div>
               <div v-if="suspectDetailTarget.user_uuid">
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider">User UUID</p>
@@ -963,9 +963,9 @@
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider">Email</p>
                 <p class="text-sm text-slate-300">{{ confirmedDetailTarget.raw_email }}</p>
               </div>
-              <div v-if="confirmedDetailTarget.raw_phone">
-                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Phone</p>
-                <p class="text-sm text-slate-300">{{ confirmedDetailTarget.raw_phone }}</p>
+              <div v-if="confirmedDetailTarget.raw_social">
+                <p class="text-[10px] text-slate-500 uppercase tracking-wider">Social Link</p>
+                <p class="text-sm text-slate-300">{{ confirmedDetailTarget.raw_social }}</p>
               </div>
               <div v-if="confirmedDetailTarget.user_uuid">
                 <p class="text-[10px] text-slate-500 uppercase tracking-wider">User UUID</p>

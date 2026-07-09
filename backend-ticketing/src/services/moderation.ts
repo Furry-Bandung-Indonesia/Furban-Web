@@ -89,7 +89,7 @@ export class ModerationService {
    * Uses KV cache with 5-min TTL.
    *
    * Matching logic:
-   * - EXACT: email, social_link (high confidence)
+   * - EXACT: email, social_link (high confidence, case-insensitive)
    * - SIMILAR: legal_name, first_name, last_name, nickname (Levenshtein >= 80%)
    *
    * Skips entries that are disabled or dismissed for this specific user.
@@ -101,7 +101,7 @@ export class ModerationService {
       lastName?: string
       nickname?: string
       email?: string
-      phoneNumber?: string
+      socialLink?: string
     },
     userUuid?: string,
   ): Promise<ModerationCheckResult> {
@@ -131,7 +131,7 @@ export class ModerationService {
     const inputLast = details.lastName?.trim().toLowerCase() || ''
     const inputNick = details.nickname?.trim().toLowerCase() || ''
     const inputEmail = details.email?.trim().toLowerCase() || ''
-    const inputSocial = details.phoneNumber?.replace(/\D/g, '') || ''
+    const inputSocial = details.socialLink?.trim().toLowerCase() || ''
     const inputFullName = [inputFirst, inputLast].filter(Boolean).join(' ')
 
     for (const entry of list) {
@@ -154,8 +154,8 @@ export class ModerationService {
         })
       }
 
-      // Phone match (exact, digits only)
-      const entrySocial = (e.social_link || '').replace(/\D/g, '')
+      // Social link match (exact, case-insensitive)
+      const entrySocial = (e.social_link || '').trim().toLowerCase()
       if (entrySocial && inputSocial && entrySocial === inputSocial) {
         matchDetails.push({
           field: 'social_link', keyword_value: entrySocial, input_value: inputSocial,

@@ -196,7 +196,7 @@
                         <span class="text-white">{{ verifyResult.ticket?.date_of_birth || verifyProfile?.date_of_birth || '—' }}</span>
                       </div>
                       <div>
-                        <span class="text-[10px] text-slate-500 block">Phone</span>
+                        <span class="text-[10px] text-slate-500 block">Social Link</span>
                         <span class="text-white">{{ verifyResult.ticket?.social_link || verifyProfile?.social_link || '—' }}</span>
                       </div>
                       <div class="col-span-2">

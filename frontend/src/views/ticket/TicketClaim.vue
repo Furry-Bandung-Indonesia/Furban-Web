@@ -277,7 +277,7 @@
                   </div>
                 </div>
 
-                <!-- Date of Birth & Phone -->
+                <!-- Date of Birth & Social Link -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="flex flex-col gap-2">
                     <span class="text-white text-sm font-semibold tracking-wide">Date of Birth <span class="text-red-400">*</span></span>
@@ -296,10 +296,10 @@
                     <div class="relative group">
                       <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8] group-focus-within:text-[#0df2f2] transition-colors">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
                       </span>
-                      <input v-model="form.social_link" type="tel"
+                      <input v-model="form.social_link" type="text"
                         class="w-full h-12 pl-12 pr-4 rounded-lg bg-[#1e293b] text-white border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] transition-all"
                         placeholder="https://t.me/username" />
                     </div>

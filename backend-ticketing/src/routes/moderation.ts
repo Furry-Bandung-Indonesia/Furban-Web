@@ -45,13 +45,13 @@ function matchPersonAgainstKeyword(
   const kwFirst = (kw.first_name || '').trim().toLowerCase()
   const kwLast = (kw.last_name || '').trim().toLowerCase()
   const kwNick = (kw.nickname || '').trim().toLowerCase()
-  const kwSocial = (kw.social_link || '').replace(/\D/g, '')
+  const kwSocial = (kw.social_link || '').trim().toLowerCase()
   const kwEmail = (kw.email || '').trim().toLowerCase()
 
   const attFirst = (person.first_name || '').trim().toLowerCase()
   const attLast = (person.last_name || '').trim().toLowerCase()
   const attNick = (person.nickname || '').trim().toLowerCase()
-  const attSocial = (person.social_link || '').replace(/\D/g, '')
+  const attSocial = (person.social_link || '').trim().toLowerCase()
   const attEmail = (person.email || '').trim().toLowerCase()
   const attFullName = [attFirst, attLast].filter(Boolean).join(' ')
 
@@ -62,7 +62,7 @@ function matchPersonAgainstKeyword(
     matchDetails.push({ field: 'email', score: 100, type: 'EXACT' })
   }
 
-  // Phone exact match
+  // Social link exact match (case-insensitive)
   if (kwSocial && attSocial && kwSocial === attSocial) {
     matchDetails.push({ field: 'social_link', score: 100, type: 'EXACT' })
   }
