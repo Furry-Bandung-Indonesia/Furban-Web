@@ -174,6 +174,38 @@
               </div>
             </div>
 
+            <!-- Voucher Section -->
+            <div class="rounded-xl border border-[#334155] bg-[#0f172a] p-6 shadow-lg">
+              <h3 class="text-white text-lg font-bold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#0df2f2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                Voucher Code
+              </h3>
+              <div class="flex gap-2">
+                <input
+                  v-model="voucherCode"
+                  @keyup.enter="applyVoucher"
+                  :disabled="!!voucherData || voucherLoading"
+                  placeholder="ENTER CODE..."
+                  class="flex-1 bg-[#0a0e17] border border-[#2d3748] rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-[#4b5563] focus:outline-none focus:border-[#0df2f2] uppercase tracking-wider font-mono"
+                />
+                <button v-if="!voucherData" @click="applyVoucher" :disabled="voucherLoading || !voucherCode.trim()"
+                  class="px-4 py-2.5 rounded-lg bg-[#1f2937] border border-[#2d3748] text-sm font-medium text-white hover:border-[#0df2f2] hover:text-[#0df2f2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ voucherLoading ? '...' : 'Apply' }}
+                </button>
+                <button v-else @click="voucherData = null; voucherCode = ''"
+                  class="px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 hover:bg-red-500/20 transition-colors">
+                  Remove
+                </button>
+              </div>
+              <p v-if="voucherError" class="text-red-400 text-xs mt-1.5">{{ voucherError }}</p>
+              <div v-if="voucherData" class="mt-2 text-xs text-green-400 flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                Voucher applied: <span class="font-bold font-mono">{{ voucherData.code }}</span> (-{{ voucherData.discount_type === 'percent' ? voucherData.discount_value + '%' : 'IDR ' + voucherData.discount_amount.toLocaleString('id-ID') }})
+              </div>
+            </div>
+
             <!-- Support -->
             <div class="flex flex-col gap-2 text-xs text-[#94a3b8] px-1">
               <p>Need help? Contact the event organizer for assistance.</p>
@@ -571,6 +603,12 @@ const timeRemaining = ref(600)
 const bidPrice = ref(null)
 let timerInterval = null
 
+// Voucher state
+const voucherCode = ref('')
+const voucherData = ref(null)
+const voucherError = ref(null)
+const voucherLoading = ref(false)
+
 function addToBid(extra) {
   const base = ticket.value?.tier_price || ticket.value?.price_total || 0
   bidPrice.value = base + extra
@@ -743,10 +781,21 @@ const computedTotal = computed(() => {
   const drinks = drinkAddOnTotal.value
   const bid = bidPrice.value || ticket.value?.bid_price || 0
   
+  let subtotal = tierPrice + food + drinks
   if (ticket.value?.name_your_price) {
-    return Math.max(bid, tierPrice + food + drinks)
+    subtotal = Math.max(bid, subtotal)
   }
-  return tierPrice + food + drinks
+
+  // Apply voucher
+  if (voucherData.value) {
+    if (voucherData.value.discount_type === 'fixed') {
+      return Math.max(0, subtotal - voucherData.value.discount_value)
+    } else if (voucherData.value.discount_type === 'percent') {
+      return Math.max(0, subtotal - Math.floor((voucherData.value.discount_value / 100) * subtotal))
+    }
+  }
+
+  return subtotal
 })
 const firstNameNeedsChange = computed(() => {
   return (form.value.first_name || '').trim().toLowerCase() === 'attendee'
@@ -796,6 +845,24 @@ function formatPrice(price) {
   return 'IDR ' + Number(price).toLocaleString('id-ID')
 }
 
+async function applyVoucher() {
+  if (!voucherCode.value.trim() || !ticket.value?.tier_uuid) return
+  voucherLoading.value = true
+  voucherError.value = null
+  voucherData.value = null
+  try {
+    const data = await ticketApi.validateVoucher(ticket.value.event_uuid, {
+      code: voucherCode.value.trim(),
+      tier_uuid: ticket.value.tier_uuid
+    })
+    voucherData.value = data
+  } catch (err) {
+    voucherError.value = err.message || 'Invalid voucher code'
+  } finally {
+    voucherLoading.value = false
+  }
+}
+
 async function handleSubmit() {
   if (isSubmitDisabled.value) {
     if (firstNameNeedsChange.value) {
@@ -831,6 +898,10 @@ async function handleSubmit() {
     // Include bid_price for Name Your Price tiers
     if (ticket.value?.name_your_price && bidPrice.value) {
       body.bid_price = bidPrice.value
+    }
+    // Include voucher
+    if (voucherData.value?.code) {
+      body.voucher_code = voucherData.value.code
     }
 
     await ticketApi.updateMyTicket(route.params.ticketId, body)
