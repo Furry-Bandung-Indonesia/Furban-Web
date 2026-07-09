@@ -301,7 +301,7 @@
                       </span>
                       <input v-model="form.social_link" type="tel"
                         class="w-full h-12 pl-12 pr-4 rounded-lg bg-[#1e293b] text-white border border-[#334155] focus:border-[#0df2f2] focus:outline-none focus:ring-0 placeholder-[#64748b] transition-all"
-                        placeholder="+62 812 3456 7890" />
+                        placeholder="https://t.me/username" />
                     </div>
                   </div>
                 </div>

@@ -67,7 +67,7 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1.5">Social Link</label>
-                <input v-model="profileForm.social_link" type="tel" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none transition-all" placeholder="+62 812 3456 7890" />
+                <input v-model="profileForm.social_link" type="tel" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none transition-all" placeholder="https://t.me/username" />
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

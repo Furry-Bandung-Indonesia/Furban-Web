@@ -71,7 +71,7 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-300 mb-1.5">Social Link</label>
-                <input v-model="form.social_link" type="tel" class="field-input" placeholder="+62 812 3456 7890" />
+                <input v-model="form.social_link" type="tel" class="field-input" placeholder="https://t.me/username" />
               </div>
             </div>
             <div>
