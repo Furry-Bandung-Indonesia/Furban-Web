@@ -1,4 +1,5 @@
 // v2 - cache bust 2026-07-09
+const _buildVer = 'v2.1'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
