@@ -252,10 +252,10 @@ payment.post('/generate', authMiddleware, async (c) => {
   if (ticket_uuid) {
     const ticket = await c.env.DB.prepare(
       `SELECT t.ticket_uuid, t.purchase_status, t.claim_expiry, t.event_uuid, t.user_uuid,
-              CASE WHEN t.bid_price IS NOT NULL
-                THEN MAX(0, MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0)) - COALESCE(t.discount_amount, 0))
-                ELSE MAX(0, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0) - COALESCE(t.discount_amount, 0))
-              END as computed_nominal
+              MAX(0, (CASE WHEN t.bid_price IS NOT NULL
+                THEN MAX(t.bid_price, tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
+                ELSE (tt.price_total + COALESCE(t.food_total, 0) + COALESCE(t.drink_total, 0))
+              END) - COALESCE(t.discount_amount, 0)) as computed_nominal
        FROM tickets t
        JOIN ticket_tiers tt ON t.tier_uuid = tt.tier_uuid
        WHERE t.ticket_uuid = ?`
