@@ -1,5 +1,4 @@
 // v3 - guaranteed cache bust
-console.log('Furban build version july 2026')
 console.log(`           ++++      ++++           
           ++++++    ++++++          
          ++++++++  ++++++++         
@@ -18,6 +17,8 @@ console.log(`           ++++      ++++
         +++: =. =  = .= :+++        
           +: =.      .= .+          
                                     `)
+console.log('Furban site build version july 2026')
+console.log('our github project : https://github.com/Furry-Bandung-Indonesia')
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
