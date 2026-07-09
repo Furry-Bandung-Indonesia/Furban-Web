@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n'
+
 
 const messages = {
   en: {
@@ -46,6 +46,70 @@ const messages = {
       contactAndSocials: 'Contact & Socials',
       comingSoon: 'More coming soon',
       rights: 'All rights reserved.'
+    },
+    privacy: {
+      title: 'Privacy Policy',
+      lastUpdated: 'Last updated: February 19, 2026',
+      intro: 'Furban ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our website and services, including the event ticketing system.',
+      section1Title: '1. Information We Collect',
+      section1Content: 'We collect information you provide directly to us, such as when you create an account, upload content, purchase event tickets, or contact us. This may include your name, email address, username, date of birth, phone number, and any content you submit (photos, blog posts, etc.).',
+      section2Title: '2. Ticketing & Event Data',
+      section2Content: 'When you purchase a ticket for an event, we collect and store additional information required for event management, including your full name, date of birth, phone number, dietary preferences (food selection), fursuiter status, and payment transaction records. This data is necessary to issue your ticket, facilitate check-in, and manage event logistics.',
+      section3Title: '3. How We Use Your Information',
+      section3Content: 'We use the information we collect to operate and improve our platform, manage user accounts, process ticket purchases and payments, facilitate event check-in procedures, display approved content in the gallery and blog, communicate with you about updates and event information, prevent fraud and enforce our terms, and ensure the security of our services.',
+      section4Title: '4. Data Sharing with Event Organisers',
+      section4Content: 'When you purchase a ticket, your personal information (name, contact details, dietary preferences) may be shared with the event organiser solely for the purposes of event management, check-in, and attendee coordination. Event organisers are bound by our terms to handle your data responsibly and must not share it with unauthorised third parties.',
+      section5Title: '5. Data Storage & Security',
+      section5Content: 'Your data is stored securely using Cloudflare infrastructure (D1 for database, R2 for media storage). We implement appropriate security measures including JWT-based authentication, password hashing, rate limiting, and moderation systems to protect your personal information and prevent unauthorised access.',
+      section6Title: '6. Content Sharing',
+      section6Content: 'Content you upload (photos, blog posts) will only be visible publicly after approval by an administrator. Rejected content will not be displayed publicly. You retain ownership of the content you create.',
+      section7Title: '7. Cookies & Local Storage',
+      section7Content: 'We use local storage to maintain your session (JWT tokens) and preferences (language setting, dark mode). We do not use third-party tracking cookies.',
+      section8Title: '8. Data Retention',
+      section8Content: 'Account data is retained as long as your account is active. Ticket and transaction records are retained for record-keeping and audit purposes even after the event has concluded. If your account is deregistered due to a terms violation, we may retain minimal records necessary for enforcement and fraud prevention.',
+      section9Title: '9. Your Rights',
+      section9Content: 'You have the right to access, update, or request deletion of your personal data. You may also request a copy of your data. Note that deletion of ticket transaction records may be restricted by legal or contractual obligations. Contact us at contact@furban.my.id for any privacy-related requests.',
+      section10Title: '10. Changes to This Policy',
+      section10Content: 'We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page with a revised date.',
+      section11Title: '11. Contact',
+      section11Content: 'If you have questions about this Privacy Policy, please contact us at contact@furban.my.id.'
+    },
+    terms: {
+      title: 'Terms of Service',
+      lastUpdated: 'Last updated: February 19, 2026',
+      intro: 'By accessing or using the Furban platform, including the event ticketing system, you agree to be bound by these Terms of Service. Please read them carefully.',
+      section1Title: '1. Acceptance of Terms',
+      section1Content: 'By creating an account, purchasing a ticket, or using our services, you acknowledge that you have read, understood, and agree to these terms. If you do not agree, please do not use the platform.',
+      section2Title: '2. User Accounts',
+      section2Content: 'You are responsible for maintaining the confidentiality of your account credentials. You must provide accurate information during registration and ticket purchases. Each person may only have one account. Providing false personal information (including name, date of birth, or contact details) is a violation of these terms.',
+      section3Title: '3. User Roles',
+      section3Content: 'Users are assigned roles (Photographer, Publisher, or Admin) that define their permissions. Photographers and Publishers can upload photos and blog posts. Only Admins can approve, reject, or moderate content and manage user roles.',
+      section4Title: '4. Content Guidelines',
+      section4Content: 'All uploaded content must comply with our community guidelines. Content must not be illegal, harmful, threatening, abusive, harassing, defamatory, or otherwise objectionable. Uploaded images must be in PNG, JPG, or WEBP format and not exceed 8MB in size.',
+      section5Title: '5. Content Approval',
+      section5Content: 'All submitted content goes through an approval process. Only content approved by an administrator will be publicly visible. We reserve the right to reject any content that violates our guidelines, with a reason provided.',
+      section6Title: '6. Event Ticketing Services',
+      section6Content: 'Furban provides an event ticketing platform that allows organisers to create events and sell tickets, and allows users to purchase tickets and attend events. By using the ticketing service, you agree to the following: tickets are issued only after successful payment confirmation; each ticket is personal and non-transferable unless authorised by the event organiser; ticket availability is subject to quota limits which may be adjusted by the organiser at any time; the organiser reserves the right to limit ticket sales, modify event schedules, change venue, or alter event programming.',
+      section7Title: '7. Ticket Purchase, Payment & Refunds',
+      section7Content: 'Ticket numbers are assigned only after payment is verified. Unpaid tickets will expire automatically after the designated claim window. If an event is cancelled by the organiser, ticket holders are entitled to a full refund. Attendee-initiated cancellations are subject to the organiser\'s refund policy. No-shows are not eligible for refunds. All payment information is processed securely through the platform.',
+      section8Title: '8. Right to Revoke Tickets',
+      section8Content: 'The organiser and/or Furban reserve the right to revoke any ticket if the attendee: provided false or fraudulent personal information; engaged in ticket scalping, resale, or unauthorised transfer; violated the event\'s code of conduct or community guidelines; engaged in harassment, threats, or any form of misconduct; attempted to circumvent security measures, forge QR codes, or duplicate tickets; or was found on the event\'s moderation or ban list. Revoked tickets are void and non-refundable.',
+      section9Title: '9. Malpractice & Fraud Prevention',
+      section9Content: 'Any attempt to manipulate the ticketing system — including automated bulk purchasing, QR code forgery, account impersonation, or exploitation of system vulnerabilities — is strictly prohibited. The platform employs rate limiting, moderation lists, and verification mechanisms to detect and prevent fraud. Circumventing these security measures is a serious violation of these terms.',
+      section10Title: '10. Enforcement & Account Consequences',
+      section10Content: 'Failure to comply with these Terms of Service may result in escalating consequences at the sole discretion of the organiser or platform administrators: (a) Warning and notation on the user\'s account; (b) Immediate ticket revocation without refund; (c) Denial of entry or removal from an event; (d) Temporary suspension of the user\'s Furban account; (e) Permanent deregistration (ban) of the user\'s account on the Furban platform. The platform reserves the right to report illegal activities to the appropriate authorities.',
+      section11Title: '11. Intellectual Property',
+      section11Content: 'You retain ownership of the content you upload. By uploading content, you grant Furban a non-exclusive license to display and distribute your content on the platform. You must only upload content you have the right to share.',
+      section12Title: '12. Prohibited Conduct',
+      section12Content: 'You may not: attempt to gain unauthorised access to other accounts or systems; upload malicious files; circumvent the content approval process or ticketing security mechanisms; impersonate others; engage in ticket scalping or fraudulent transactions; or use the platform for any unlawful purpose.',
+      section13Title: '13. Termination',
+      section13Content: 'We reserve the right to suspend or terminate accounts that violate these terms. Accounts involved in ticketing fraud, malpractice, or repeated violations may be permanently deregistered without prior notice. You may also request deletion of your account by contacting us.',
+      section14Title: '14. Limitation of Liability',
+      section14Content: 'Furban is provided "as is" without warranties of any kind. We are not liable for any damages resulting from the use or inability to use the platform, including but not limited to event cancellations, denied entry, or ticket revocation resulting from a user\'s violation of these terms. Attendance at events is at the user\'s own risk.',
+      section15Title: '15. Changes to Terms',
+      section15Content: 'We may modify these terms at any time. Continued use of the platform after changes constitutes acceptance of the new terms. For material changes affecting existing ticket holders, we will provide reasonable notice through the platform.',
+      section16Title: '16. Contact',
+      section16Content: 'For questions about these terms, contact us at contact@furban.my.id.'
     },
     faq: {
       title: 'Frequently Asked Questions',
@@ -185,11 +249,4 @@ const messages = {
   }
 }
 
-const i18n = createI18n({
-  legacy: false,
-  locale: 'en',
-  fallbackLocale: 'en',
-  messages
-})
-
-export default i18n
+module.exports = messages;
