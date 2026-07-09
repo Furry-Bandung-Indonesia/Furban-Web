@@ -10,6 +10,6 @@
 # Hashed assets: browser caches forever (content hash in name), but NO CDN/proxy caching
 # (CDN must not cache assets since it may have previously cached a bad HTML response)
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=300, immutable
   Surrogate-Control: no-store
   CDN-Cache-Control: no-store
