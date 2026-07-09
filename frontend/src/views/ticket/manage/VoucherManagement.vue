@@ -59,6 +59,7 @@
             <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Discount Type</label>
             <div class="flex rounded-lg overflow-hidden border border-[#2d3748]">
               <button
+                type="button"
                 @click="form.discount_type = 'fixed'"
                 class="flex-1 py-2.5 text-sm font-medium transition-colors"
                 :class="form.discount_type === 'fixed'
@@ -66,6 +67,7 @@
                   : 'bg-[#0a0e17] text-slate-400 hover:text-white'"
               >Fixed (IDR)</button>
               <button
+                type="button"
                 @click="form.discount_type = 'percent'"
                 class="flex-1 py-2.5 text-sm font-medium transition-colors border-l border-[#2d3748]"
                 :class="form.discount_type === 'percent'
@@ -88,21 +90,25 @@
                      placeholder:text-slate-600 focus:outline-none focus:border-[#0df2f2] transition-colors"
             />
           </div>
-        </div>
 
-        <!-- Active Toggle -->
-        <div class="flex items-center gap-3">
-          <button
-            @click="form.is_active = !form.is_active"
-            class="relative w-11 h-6 rounded-full transition-colors"
-            :class="form.is_active ? 'bg-[#0df2f2]' : 'bg-slate-700'"
-          >
-            <span
-              class="absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform"
-              :class="form.is_active ? 'translate-x-6' : 'translate-x-1'"
-            ></span>
-          </button>
-          <span class="text-sm text-slate-300">{{ form.is_active ? 'Active' : 'Inactive' }}</span>
+          <!-- Active Status Toggle -->
+          <div class="flex flex-col justify-end pb-1">
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Voucher Status</label>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                @click="form.is_active = !form.is_active"
+                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0df2f2] focus:ring-offset-2"
+                :class="form.is_active ? 'bg-[#0df2f2]' : 'bg-slate-700'"
+              >
+                <span
+                  class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                  :class="form.is_active ? 'translate-x-5' : 'translate-x-0'"
+                ></span>
+              </button>
+              <span class="text-sm text-slate-300">{{ form.is_active ? 'Active' : 'Inactive' }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Form Error -->
