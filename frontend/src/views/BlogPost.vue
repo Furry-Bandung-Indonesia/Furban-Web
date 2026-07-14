@@ -90,6 +90,27 @@ const md = new MarkdownIt({
   breaks: true,
 })
 
+const allowedIframeSrcPattern = /^https:\/\/(www\.)?google\.com\/maps\/(embed|d\/embed)(\?.*)?$/i
+
+let iframeSanitizerHookRegistered = false
+
+const registerIframeSanitizerHook = () => {
+  if (iframeSanitizerHookRegistered) return
+
+  DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+    if (data.tagName !== 'iframe') return
+
+    const src = node.getAttribute && node.getAttribute('src')
+    if (!src || !allowedIframeSrcPattern.test(src)) {
+      node.parentNode?.removeChild(node)
+    }
+  })
+
+  iframeSanitizerHookRegistered = true
+}
+
+registerIframeSanitizerHook()
+
 // Custom fence renderer: turn ```mermaid blocks into <pre class="mermaid">
 const defaultFence = md.renderer.rules.fence?.bind(md.renderer.rules) || 
   function(tokens, idx, options, env, self) { return self.renderToken(tokens, idx, options) }
@@ -119,8 +140,8 @@ export default {
       if (!post.value.content) return ''
       const rawHtml = md.render(post.value.content)
       return DOMPurify.sanitize(rawHtml, {
-        ADD_TAGS: ['pre'],
-        ADD_ATTR: ['class'],
+        ADD_TAGS: ['pre', 'iframe'],
+        ADD_ATTR: ['class', 'src', 'width', 'height', 'style', 'loading', 'title', 'frameborder', 'allow', 'allowfullscreen', 'referrerpolicy'],
       })
     })
 
@@ -256,6 +277,15 @@ export default {
   color: rgb(17 24 39); /* gray-900 */
   font-weight: bold;
   margin-bottom: 1rem;
+}
+
+.blog-content iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
 }
 
 .dark .blog-content h1,
