@@ -74,9 +74,9 @@
             <div class="relative group">
               <!-- Main Image -->
               <img 
-                  src="/furban.png" 
+                  src="/heri.png" 
                   alt="Furban Community" 
-                  class="w-full max-w-lg mx-auto filter drop-shadow-2xl"
+                  class="w-full max-w-md mx-auto filter drop-shadow-2xl"
                 />
               <!-- Glow Effect -->
               <div class="absolute inset-0 bg-gradient-to-r from-primary-500/20 via-transparent to-blue-500/20 rounded-3xl blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
