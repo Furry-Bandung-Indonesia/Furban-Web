@@ -111,7 +111,7 @@
                 <div class="flex items-start justify-between gap-3 mb-3">
                   <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
-                      <img v-if="channel.image_url" :src="channel.image_url.replace('https://dash.wijayapay.com', 'https://dashboard.wijayapay.com')" :alt="channel.name" class="w-8 h-8 object-contain" @error="(e) => e.target.style.display='none'" />
+                      <img v-if="channel.image_url" :src="channel.image_url.replace(/https:\/\/(dash|dashboard)\.wijayapay\.com/g, 'https://app.wijayapay.com')" :alt="channel.name" class="w-8 h-8 object-contain" @error="(e) => e.target.style.display='none'" />
                       <svg v-else class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                       </svg>

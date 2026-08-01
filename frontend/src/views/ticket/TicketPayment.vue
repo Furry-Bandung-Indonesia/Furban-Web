@@ -329,7 +329,7 @@
                             ? 'border-[#0df2f2] bg-[#0df2f2]/5'
                             : 'border-[#334155] hover:border-[#475569]'">
                           <input type="radio" :value="ch.code" v-model="selectedChannel" name="payment_channel" class="sr-only" />
-                          <img v-if="ch.image_url" :src="ch.image_url.replace('https://dash.wijayapay.com', 'https://dashboard.wijayapay.com')" :alt="ch.name" class="w-12 h-8 object-contain rounded bg-white p-1" />
+                          <img v-if="ch.image_url" :src="ch.image_url.replace(/https:\/\/(dash|dashboard)\.wijayapay\.com/g, 'https://app.wijayapay.com')" :alt="ch.name" class="w-12 h-8 object-contain rounded bg-white p-1" />
                           <div v-else class="w-12 h-8 rounded bg-[#334155] flex items-center justify-center text-[8px] font-bold text-[#94a3b8] uppercase">
                             {{ ch.code?.substring(0, 4) }}
                           </div>

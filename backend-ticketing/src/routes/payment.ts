@@ -21,7 +21,7 @@ const payment = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 // ═══════════════════════════════════════════════════
 
 async function wijayapayGetPayments(merchantCode: string, apiKey: string) {
-  const url = `https://wijayapay.com/api/get-payment?code_merchant=${merchantCode}&api_key=${apiKey}`
+  const url = `https://gateway.wijayapay.com/api/get-payment?code_merchant=${merchantCode}&api_key=${apiKey}`
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'Furban-Ticketing/1.0' },
   })
@@ -44,7 +44,7 @@ async function wijayapayCreateTransaction(
     nominal: nominal.toString(),
   })
 
-  const res = await fetch('https://wijayapay.com/api/transaction/create', {
+  const res = await fetch('https://gateway.wijayapay.com/api/transaction/create', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -57,7 +57,7 @@ async function wijayapayCreateTransaction(
 }
 
 async function wijayapayCheckStatus(merchantCode: string, apiKey: string, refId: string) {
-  const url = `https://wijayapay.com/api/get-status?code_merchant=${merchantCode}&api_key=${apiKey}&ref_id=${refId}`
+  const url = `https://gateway.wijayapay.com/api/get-status?code_merchant=${merchantCode}&api_key=${apiKey}&ref_id=${refId}`
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Furban-Ticketing/1.0' },
   })
