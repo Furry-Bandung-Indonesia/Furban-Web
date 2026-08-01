@@ -64,6 +64,12 @@ async function wijayapayCheckStatus(merchantCode: string, apiKey: string, refId:
   return res.json() as Promise<{ data?: any; status_pembayaran?: string }>
 }
 
+/** Normalize WijayaPay image URLs to use app.wijayapay.com */
+function normalizeWijayapayImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  return url.replace(/https:\/\/(?:dash|dashboard|gateway|www\.)?wijayapay\.com/g, 'https://app.wijayapay.com')
+}
+
 /** MD5 hash using Cloudflare Workers Web Crypto API (supports MD5) */
 async function md5(input: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -126,7 +132,7 @@ payment.post('/:eventId/payment/channels/sync', eventPermission('eventId'), asyn
          gateway_status = ?, synced_at = ?, updated_at = ?
          WHERE code = ?`
       ).bind(
-        ch.name, ch.group, ch.image, parseFloat(ch.fee_amount) || 0, parseFloat(ch.fee_percent) || 0,
+        ch.name, ch.group, normalizeWijayapayImageUrl(ch.image), parseFloat(ch.fee_amount) || 0, parseFloat(ch.fee_percent) || 0,
         ch.type_fee || 'merchant', parseFloat(ch.min_trx) || 0, parseFloat(ch.max_trx) || 0,
         ch.tutorial_pembayaran || null,
         ch.status, now, now, ch.code,
@@ -140,7 +146,7 @@ payment.post('/:eventId/payment/channels/sync', eventPermission('eventId'), asyn
           sort_order, synced_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`
       ).bind(
-        crypto.randomUUID(), ch.code, ch.name, ch.group, ch.image,
+        crypto.randomUUID(), ch.code, ch.name, ch.group, normalizeWijayapayImageUrl(ch.image),
         parseFloat(ch.fee_amount) || 0, parseFloat(ch.fee_percent) || 0,
         ch.type_fee || 'merchant', parseFloat(ch.min_trx) || 0, parseFloat(ch.max_trx) || 0,
         ch.tutorial_pembayaran || null,
