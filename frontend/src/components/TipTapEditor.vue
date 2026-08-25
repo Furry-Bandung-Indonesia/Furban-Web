@@ -126,8 +126,10 @@ import ticketApi from '../services/ticketApi'
 const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: 'Start writing...' },
-  /** Pass eventId to enable R2 image upload. Without it, falls back to base64 preview. */
+  /** Pass eventId to enable R2 image upload via ticketApi */
   eventId: { type: String, default: null },
+  /** Pass custom upload function: (file: File) => Promise<{ url: string } | string> */
+  uploadHandler: { type: Function, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -210,7 +212,24 @@ async function handleImageFile(event) {
   // Reset input so same file can be re-selected
   event.target.value = ''
 
-  if (props.eventId) {
+  if (props.uploadHandler) {
+    isUploadingImage.value = true
+    imageUploadError.value = ''
+    try {
+      const res = await props.uploadHandler(file)
+      const imageUrl = typeof res === 'string' ? res : (res.url || res.image)
+      if (imageUrl) {
+        editor.value?.chain().focus().setImage({ src: imageUrl }).run()
+      } else {
+        throw new Error('Invalid upload response')
+      }
+    } catch (e) {
+      imageUploadError.value = e.message || 'Failed to upload image'
+      setTimeout(() => { imageUploadError.value = '' }, 4000)
+    } finally {
+      isUploadingImage.value = false
+    }
+  } else if (props.eventId) {
     // Upload to R2
     isUploadingImage.value = true
     imageUploadError.value = ''
@@ -229,7 +248,7 @@ async function handleImageFile(event) {
       isUploadingImage.value = false
     }
   } else {
-    // Fallback: base64 preview (no eventId)
+    // Fallback: base64 preview (no eventId or uploadHandler)
     const reader = new FileReader()
     reader.onload = (e) => {
       editor.value?.chain().focus().setImage({ src: e.target.result }).run()

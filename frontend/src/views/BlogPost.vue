@@ -135,13 +135,24 @@ export default {
     const loading = ref(true)
     const error = ref(null)
 
-    // Render markdown content to sanitized HTML
+    // Render markdown or TipTap HTML content to sanitized HTML
     const renderedContent = computed(() => {
-      if (!post.value.content) return ''
-      const rawHtml = md.render(post.value.content)
+      const content = post.value.content
+      if (!content) return ''
+
+      let rawHtml = content
+      // If content is plain markdown (doesn't contain HTML tags), render markdown
+      if (!/<[a-z][\s\S]*>/i.test(content)) {
+        rawHtml = md.render(content)
+      }
+
       return DOMPurify.sanitize(rawHtml, {
-        ADD_TAGS: ['pre', 'iframe'],
-        ADD_ATTR: ['class', 'src', 'width', 'height', 'style', 'loading', 'title', 'frameborder', 'allow', 'allowfullscreen', 'referrerpolicy'],
+        ADD_TAGS: ['pre', 'iframe', 'img', 'mark', 'hr', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'td', 'th'],
+        ADD_ATTR: [
+          'class', 'src', 'alt', 'width', 'height', 'style', 'loading',
+          'title', 'frameborder', 'allow', 'allowfullscreen', 'referrerpolicy',
+          'target', 'rel', 'href'
+        ],
       })
     })
 
@@ -286,6 +297,15 @@ export default {
   border: 0;
   border-radius: 0.75rem;
   margin: 1.5rem 0;
+}
+
+.blog-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1.5rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dark .blog-content h1,

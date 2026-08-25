@@ -1,0 +1,29 @@
+name = "backend-telegram"
+main = "src/index.ts"
+compatibility_date = "2024-12-04"
+
+# ┌─────────────────────────────────────────────────────────────┐
+# │ Custom domain route (configure your domain here if needed): │
+# │ routes = [                                                  │
+# │   { pattern = "tg.furban.my.id", custom_domain = true }    │
+# │ ]                                                           │
+# └─────────────────────────────────────────────────────────────┘
+
+# KV for conversation state, rate limiting, and model preferences
+[[kv_namespaces]]
+binding = "KV"
+id = "115fe05abe624ce18afc0096956bc753"
+
+[vars]
+ZANSLAB_BASE_URL = "https://zanslab.id/v1"
+ZANSLAB_DEFAULT_MODEL = "an/claude-opus-5"
+AUTH_SERVICE_URL = "https://auth.furban.my.id"
+TICKETING_SERVICE_URL = "https://ticket.furban.my.id"
+JWT_SECRET = "dev-secret-key-change-in-prod"
+WEBHOOK_SECRET = "furban-telegram-bot-secret"
+
+# Production Secrets (set via: wrangler secret put <NAME>):
+# TELEGRAM_BOT_TOKEN
+# ZANSLAB_API_KEY
+# JWT_SECRET
+# WEBHOOK_SECRET

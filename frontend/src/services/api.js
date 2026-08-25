@@ -141,6 +141,26 @@ class ApiService {
         });
     }
 
+    async uploadBlogContentImage(file) {
+        const url = `${this.baseURL}${config.endpoints.blogs}/upload-image`;
+        const token = localStorage.getItem('authToken');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Failed to upload image' }));
+            throw new Error(error.message || `Request failed with status ${response.status}`);
+        }
+
+        return response.json();
+    }
+
     async updateBlogStatus(id, status, reason = null) {
         return this.request(`${config.endpoints.admin}/blogs/${id}/status`, {
             method: 'PUT',

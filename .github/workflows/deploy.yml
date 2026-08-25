@@ -17,6 +17,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       backend-auth: ${{ steps.filter.outputs.backend-auth }}
       backend-ticketing: ${{ steps.filter.outputs.backend-ticketing }}
+      backend-telegram: ${{ steps.filter.outputs.backend-telegram }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +32,8 @@ jobs:
               - 'backend-auth/**'
             backend-ticketing:
               - 'backend-ticketing/**'
+            backend-telegram:
+              - 'backend-telegram/**'
             frontend:
               - 'frontend/**'
 
@@ -116,6 +119,31 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: backend-ticketing
+          command: deploy
+
+  # ─── Telegram Bot Worker (backend-telegram) ───
+  deploy-backend-telegram:
+    name: Deploy Telegram Bot Worker
+    needs: changes
+    if: needs.changes.outputs.backend-telegram == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: backend-telegram
+        run: npm ci
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend-telegram
           command: deploy
 
   # ─── Frontend (Cloudflare Pages — furban.my.id) ───

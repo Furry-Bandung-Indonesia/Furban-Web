@@ -21,6 +21,7 @@ app.get('/users', async (c) => {
     const { results } = await c.env.DB.prepare(`
       SELECT uuid, email, role, legal_name, nickname, first_name, last_name, 
              date_of_birth, social_link, profile_image_url, 
+             telegram_id, telegram_username, telegram_linked_at,
              is_active, pending_profile, created_at, updated_at
       FROM users 
       ORDER BY created_at DESC
@@ -42,7 +43,9 @@ app.get('/users/:uuid', async (c) => {
     const uuid = c.req.param('uuid')
 
     const user = await c.env.DB.prepare(`
-      SELECT uuid, email, role, legal_name, nickname, profile_image_url, 
+      SELECT uuid, email, role, legal_name, nickname, first_name, last_name,
+             date_of_birth, social_link, profile_image_url, 
+             telegram_id, telegram_username, telegram_linked_at,
              is_active, pending_profile, created_at, updated_at
       FROM users WHERE uuid = ?
     `).bind(uuid).first()
@@ -347,6 +350,79 @@ app.get('/stats', async (c) => {
   } catch (e: any) {
     console.error('Get Stats Error:', e)
     return c.json({ message: 'Failed to get stats', error: e.message }, 500)
+  }
+})
+
+/**
+ * GET /auth/admin/users/by-telegram/:telegramId
+ * Lookup user by Telegram ID
+ */
+app.get('/users/by-telegram/:telegramId', async (c) => {
+  try {
+    const telegramId = c.req.param('telegramId')
+    const user = await c.env.DB.prepare(`
+      SELECT uuid, email, role, legal_name, nickname, first_name, last_name,
+             profile_image_url, is_active, telegram_id, telegram_username, telegram_linked_at
+      FROM users
+      WHERE telegram_id = ?
+    `).bind(telegramId).first()
+
+    if (!user) {
+      return c.json({ message: 'User with this Telegram ID not found' }, 404)
+    }
+
+    return c.json(user)
+  } catch (e: any) {
+    console.error('Lookup by Telegram Error:', e)
+    return c.json({ message: 'Failed to lookup user', error: e.message }, 500)
+  }
+})
+
+/**
+ * GET /auth/admin/telegram-users
+ * List all users with linked Telegram accounts
+ */
+app.get('/telegram-users', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT uuid, email, role, legal_name, nickname, first_name, last_name,
+             profile_image_url, telegram_id, telegram_username, telegram_linked_at, is_active
+      FROM users
+      WHERE telegram_id IS NOT NULL AND telegram_id != ''
+      ORDER BY telegram_linked_at DESC
+    `).all()
+
+    return c.json(results || [])
+  } catch (e: any) {
+    console.error('Get Telegram Users Error:', e)
+    return c.json({ message: 'Failed to get Telegram users', error: e.message }, 500)
+  }
+})
+
+/**
+ * DELETE /auth/admin/users/:uuid/telegram
+ * Admin unlink a user's Telegram account
+ */
+app.delete('/users/:uuid/telegram', async (c) => {
+  try {
+    const uuid = c.req.param('uuid')
+
+    const user = await c.env.DB.prepare('SELECT uuid FROM users WHERE uuid = ?').bind(uuid).first()
+    if (!user) {
+      return c.json({ message: 'User not found' }, 404)
+    }
+
+    const now = new Date().toISOString()
+    await c.env.DB.prepare(`
+      UPDATE users 
+      SET telegram_id = NULL, telegram_username = NULL, telegram_linked_at = NULL, updated_at = ?
+      WHERE uuid = ?
+    `).bind(now, uuid).run()
+
+    return c.json({ message: 'Telegram account unlinked by admin' })
+  } catch (e: any) {
+    console.error('Admin Unlink Telegram Error:', e)
+    return c.json({ message: 'Failed to unlink Telegram account', error: e.message }, 500)
   }
 })
 

@@ -28,7 +28,7 @@ CREATE TABLE blogs (
   content TEXT,
   mini_desc TEXT,
   tags TEXT,
-  status TEXT CHECK(status IN ('pending','approved','rejected')) DEFAULT 'pending',
+  status TEXT CHECK(status IN ('draft','pending','approved','rejected')) DEFAULT 'pending',
   approval_reason TEXT,
   photo_filename TEXT,
   author_name TEXT,

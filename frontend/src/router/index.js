@@ -116,6 +116,18 @@ const router = createRouter({
           meta: { allowedRoles: ['admin', 'publisher'] }
         },
         {
+          path: 'blogs/create',
+          name: 'dashboard-blog-create',
+          component: lazyLoad(() => import('../views/dashboard/BlogEditor.vue')),
+          meta: { allowedRoles: ['admin', 'publisher'] }
+        },
+        {
+          path: 'blogs/edit/:id',
+          name: 'dashboard-blog-edit',
+          component: lazyLoad(() => import('../views/dashboard/BlogEditor.vue')),
+          meta: { allowedRoles: ['admin', 'publisher'] }
+        },
+        {
           path: 'photos',
           name: 'dashboard-photos',
           component: lazyLoad(() => import('../views/dashboard/ManagePhotos.vue')),
@@ -127,7 +139,12 @@ const router = createRouter({
           component: lazyLoad(() => import('../views/dashboard/ManageUsers.vue')),
           meta: { allowedRoles: ['admin'] }
         },
-
+        {
+          path: 'telegram',
+          name: 'dashboard-telegram',
+          component: lazyLoad(() => import('../views/dashboard/TelegramIntegration.vue')),
+          meta: { allowedRoles: ['admin'] }
+        },
       ]
     },
     // Legacy route redirects

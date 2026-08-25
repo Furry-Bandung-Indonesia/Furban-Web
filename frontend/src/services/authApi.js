@@ -421,6 +421,53 @@ class AuthApiService {
   async searchUsers(query) {
     return this.request(`/auth/users/search?q=${encodeURIComponent(query)}`);
   }
+
+  // ═══════════════════════════════════════════════════
+  // TELEGRAM INTEGRATION
+  // ═══════════════════════════════════════════════════
+
+  /**
+   * Link current user's Telegram account
+   * @param {string|number} telegramId - Telegram user ID
+   * @param {string} [telegramUsername] - Telegram @username
+   */
+  async linkTelegram(telegramId, telegramUsername = null) {
+    return this.request('/auth/me/telegram/link', {
+      method: 'POST',
+      body: JSON.stringify({
+        telegram_id: telegramId,
+        telegram_username: telegramUsername,
+      }),
+    });
+  }
+
+  /**
+   * Unlink current user's Telegram account
+   */
+  async unlinkTelegram() {
+    return this.request('/auth/me/telegram/unlink', {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Get all Telegram-linked users (admin only)
+   */
+  async getTelegramUsers() {
+    return this.request('/auth/admin/telegram-users', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Admin unlink another user's Telegram account
+   * @param {string} userUuid - Target user UUID
+   */
+  async adminUnlinkTelegram(userUuid) {
+    return this.request(`/auth/admin/users/${userUuid}/telegram`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export default new AuthApiService();

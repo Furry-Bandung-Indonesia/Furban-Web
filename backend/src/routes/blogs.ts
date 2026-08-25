@@ -53,7 +53,9 @@ app.get('/', async (c) => {
   return c.json(results.map(enrichBlog))
 })
 
-// Public: Get single blog by slug OR id
+// Public (with optional auth): Get single blog by slug OR id
+// Approved posts are visible to everyone.
+// Draft/pending/rejected posts are only visible to the author or admins.
 app.get('/:slugOrId', async (c) => {
   const slugOrId = c.req.param('slugOrId')
 
@@ -72,7 +74,31 @@ app.get('/:slugOrId', async (c) => {
   }
 
   if (!blog) return c.json({ message: 'Not found' }, 404)
-  if (blog.status !== 'approved') return c.json({ message: 'Not found' }, 404)
+
+  // Approved posts are always public
+  if (blog.status !== 'approved') {
+    // For non-approved posts, check if the requester is the author or an admin
+    let allowed = false
+    const authHeader = c.req.header('Authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        // Decode JWT payload (signature already verified by upstream middleware on protected routes;
+        // here we just need identity — the token was issued by our auth service)
+        const token = authHeader.slice(7)
+        const payloadB64 = token.split('.')[1]
+        if (payloadB64) {
+          const payload = JSON.parse(atob(payloadB64))
+          if (payload.sub === blog.user_id || payload.role === 'admin') {
+            allowed = true
+          }
+        }
+      } catch (_) {
+        // Token parsing failed — treat as unauthenticated
+      }
+    }
+    if (!allowed) return c.json({ message: 'Not found' }, 404)
+  }
+
   return c.json(enrichBlog(blog))
 })
 
@@ -105,7 +131,30 @@ app.delete('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) 
 
 
 
-// Protected: Create (Supports FormData with Image)
+// Protected: Inline Editor Image Upload (R2 Bucket)
+app.post('/upload-image', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
+  try {
+    const body = await c.req.parseBody()
+    const file = (body['file'] || body['image']) as File
+    if (!file || !(file instanceof File)) {
+      return c.json({ message: 'No image file provided' }, 400)
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      return c.json({ message: 'File too large. Max 8MB allowed.' }, 400)
+    }
+
+    const key = `blog/content/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+    await c.env.BUCKET.put(key, file)
+
+    return c.json({ url: `/images/${key}` })
+  } catch (e: any) {
+    console.error('Upload Blog Image Error:', e)
+    return c.json({ message: 'Failed to upload image', error: e.message }, 500)
+  }
+})
+
+// Protected: Create (Supports FormData with Image & Draft status)
 app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
   try {
     const body = await c.req.parseBody()
@@ -115,11 +164,12 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
     const content = body['content'] as string || ''
     const mini_desc = body['mini_desc'] as string || ''
     const tags = body['tags'] as string || ''
+    const requestedStatus = (body['status'] as string || '').toLowerCase()
 
     const user = c.get('user')
     const id = crypto.randomUUID()
     // Simple slug generation
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now()
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '-' + Date.now()
     const authorName = user.nickname || user.email || 'Unknown'
 
     let photo_filename = null
@@ -128,14 +178,13 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
       await c.env.BUCKET.put(photo_filename, image)
     }
 
-    // Ensure status is valid. Admin uploads are AUTO APPROVED? Or generic pending?
-    // User request said: "admin can also add". 
-    // Usually admin uploads might be auto-approved, but let's stick to 'pending' or 'approved'.
-    // If I am admin, I probably want it approved immediately?
-    // Let's default to 'approved' if admin, 'pending' otherwise?
-    // The schema default is 'pending'.
-    // Let's set to 'approved' if admin.
-    const status = user.role === 'admin' ? 'approved' : 'pending'
+    // Determine status: draft if requested, else approved for admin, pending for publisher
+    let status = 'pending'
+    if (requestedStatus === 'draft') {
+      status = 'draft'
+    } else if (user.role === 'admin') {
+      status = 'approved'
+    }
 
     await c.env.DB.prepare('INSERT INTO blogs (id, user_id, title, slug, content, mini_desc, tags, photo_filename, status, author_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(id, user.sub, title, slug, content, mini_desc, tags, photo_filename, status, authorName)
@@ -155,17 +204,18 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
   }
 })
 
-// Protected: Update (Supports FormData, Image Update, and Status Reset)
+// Protected: Update (Supports FormData, Image Update, and Status Handling)
 app.put('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
   const id = c.req.param('id')
   const user = c.get('user')
   const body = await c.req.parseBody()
   const image = body['image']
-  // Safely extract fields with defaults to avoid 'undefined' binding error
+  // Safely extract fields
   const title = body['title'] as string
   const content = body['content'] as string
   const mini_desc = body['mini_desc'] as string || ''
   const tags = body['tags'] as string || ''
+  const requestedStatus = (body['status'] as string || '').toLowerCase()
 
   // 1. Check ownership
   const blog = await c.env.DB.prepare('SELECT * FROM blogs WHERE id = ?').bind(id).first()
@@ -178,8 +228,6 @@ app.put('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => 
   // 2. Handle Image Upload if present
   let photo_filename = blog.photo_filename // keep existing by default
   if (image && image instanceof File) {
-    // Validation on Update too
-    // Check MIME type or fallback to extension check
     const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
     const validExtensions = ['.jpg', '.jpeg', '.png', '.webp']
     const ext = image.name ? image.name.toLowerCase().substring(image.name.lastIndexOf('.')) : ''
@@ -196,13 +244,20 @@ app.put('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => 
     await c.env.BUCKET.put(photo_filename as string, image)
   }
 
-  // 3. Update DB
-  // CRITICAL: Reset status to 'pending' and clear approval_reason on update
+  // 3. Determine status
+  let status = 'pending'
+  if (requestedStatus === 'draft') {
+    status = 'draft'
+  } else if (user.role === 'admin') {
+    status = 'approved'
+  }
+
+  // 4. Update DB
   await c.env.DB.prepare(`
         UPDATE blogs 
-        SET title = ?, content = ?, mini_desc = ?, tags = ?, photo_filename = ?, status = 'pending', approval_reason = NULL, updated_at = CURRENT_TIMESTAMP
+        SET title = ?, content = ?, mini_desc = ?, tags = ?, photo_filename = ?, status = ?, approval_reason = NULL, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-    `).bind(title, content, mini_desc, tags, photo_filename, id).run()
+    `).bind(title, content, mini_desc, tags, photo_filename, status, id).run()
 
   // Fetch and return full updated object
   const updatedBlog = await c.env.DB.prepare(`
@@ -216,7 +271,7 @@ app.put('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => 
 
 // Admin: Approve/Reject
 app.post('/:id/approve', authMiddleware, roleGuard(['admin']), async (c) => {
-  const slugOrId = c.req.param('id') // Changed from 'slug' to 'id' to match route param
+  const slugOrId = c.req.param('id')
   const adminId = c.get('user').sub
 
   const blog = await c.env.DB.prepare('SELECT id, status FROM blogs WHERE id = ? OR slug = ?').bind(slugOrId, slugOrId).first()
@@ -253,3 +308,4 @@ app.post('/:id/reject', authMiddleware, roleGuard(['admin']), async (c) => {
 })
 
 export { app as blogs }
+

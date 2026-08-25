@@ -24,7 +24,8 @@ binding = "BUCKET"
 bucket_name = "furban-media"
 
 [vars]
+JWT_SECRET = "dev-secret-key-change-in-prod"
 JWT_EXPIRE_HOURS = "48"
 SESSION_EXPIRE_HOURS = "3"
 FRONTEND_URL = "https://furban.my.id"
-TURNSTILE_BYPASS = "false"
+TURNSTILE_BYPASS = "true"

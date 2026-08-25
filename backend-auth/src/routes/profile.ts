@@ -46,6 +46,9 @@ app.get('/', async (c) => {
         auth_provider: user.auth_provider || 'local',
         pending_profile: user.pending_profile === 1,
         is_active: user.is_active === 1,
+        telegram_id: user.telegram_id || null,
+        telegram_username: user.telegram_username || null,
+        telegram_linked_at: user.telegram_linked_at || null,
         created_at: user.created_at,
         updated_at: user.updated_at
       }
@@ -295,6 +298,68 @@ app.delete('/avatar', async (c) => {
   } catch (e: any) {
     console.error('Remove Avatar Error:', e)
     return c.json({ message: 'Failed to remove avatar', error: e.message }, 500)
+  }
+})
+
+/**
+ * POST /auth/me/telegram/link
+ * Link Telegram account to current user
+ */
+app.post('/telegram/link', async (c) => {
+  try {
+    const userPayload = c.get('user')
+    const { telegram_id, telegram_username } = await c.req.json()
+
+    if (!telegram_id) {
+      return c.json({ message: 'telegram_id is required' }, 400)
+    }
+
+    const cleanTelegramId = String(telegram_id).trim()
+    const cleanUsername = telegram_username ? String(telegram_username).trim().replace(/^@/, '') : null
+
+    // Check if this telegram_id is already linked to another user
+    const existing = await c.env.DB.prepare(
+      'SELECT uuid, email, nickname FROM users WHERE telegram_id = ? AND uuid != ?'
+    ).bind(cleanTelegramId, userPayload.sub).first()
+
+    if (existing) {
+      return c.json({ message: 'This Telegram account is already linked to another user' }, 409)
+    }
+
+    const now = new Date().toISOString()
+    await c.env.DB.prepare(
+      'UPDATE users SET telegram_id = ?, telegram_username = ?, telegram_linked_at = ?, updated_at = ? WHERE uuid = ?'
+    ).bind(cleanTelegramId, cleanUsername, now, now, userPayload.sub).run()
+
+    return c.json({
+      message: 'Telegram account linked successfully',
+      telegram_id: cleanTelegramId,
+      telegram_username: cleanUsername,
+      telegram_linked_at: now
+    })
+  } catch (e: any) {
+    console.error('Link Telegram Error:', e)
+    return c.json({ message: 'Failed to link Telegram account', error: e.message }, 500)
+  }
+})
+
+/**
+ * DELETE /auth/me/telegram/unlink
+ * Unlink Telegram account from current user
+ */
+app.delete('/telegram/unlink', async (c) => {
+  try {
+    const userPayload = c.get('user')
+    const now = new Date().toISOString()
+
+    await c.env.DB.prepare(
+      'UPDATE users SET telegram_id = NULL, telegram_username = NULL, telegram_linked_at = NULL, updated_at = ? WHERE uuid = ?'
+    ).bind(now, userPayload.sub).run()
+
+    return c.json({ message: 'Telegram account unlinked successfully' })
+  } catch (e: any) {
+    console.error('Unlink Telegram Error:', e)
+    return c.json({ message: 'Failed to unlink Telegram account', error: e.message }, 500)
   }
 })
 

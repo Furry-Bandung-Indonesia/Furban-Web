@@ -6,11 +6,13 @@
         <h2 class="text-2xl font-bold text-white">{{ isAdmin ? 'All Blogs' : 'My Blogs' }}</h2>
         <p class="text-slate-400 text-sm mt-1">{{ blogs.length }} post{{ blogs.length !== 1 ? 's' : '' }} total</p>
       </div>
-      <button @click="showCreateBlog = true"
-        class="bg-[#0df2f2] hover:bg-[#0bd8d8] text-[#101622] px-5 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#0df2f2]/20 flex items-center gap-2">
+      <router-link
+        to="/dashboard/blogs/create"
+        class="bg-[#0df2f2] hover:bg-[#0bd8d8] text-[#101622] px-5 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#0df2f2]/20 flex items-center gap-2"
+      >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
         New Blog Post
-      </button>
+      </router-link>
     </div>
 
     <!-- Loading -->
@@ -42,7 +44,7 @@
             <div class="flex items-center gap-2 text-xs text-slate-500 mb-2">
               <span>{{ formatBlogAuthor(blog.author) }}</span>
               <span>&bull;</span>
-              <span>{{ new Date(blog.created_at).toLocaleDateString() }}</span>
+              <span>{{ blog.created_at ? new Date(blog.created_at).toLocaleDateString() : 'Draft' }}</span>
             </div>
             <h4 class="text-lg font-bold text-white mb-2 line-clamp-1">{{ blog.title }}</h4>
             <p class="text-sm text-slate-400 line-clamp-2 mb-3">{{ blog.description || blog.mini_desc }}</p>
@@ -61,59 +63,20 @@
             <div v-else></div>
             <!-- Actions -->
             <div class="flex gap-1">
-              <button v-if="canEdit(blog)" @click="openEditBlog(blog)" class="p-2 text-slate-500 hover:text-[#0df2f2] transition-colors rounded-lg hover:bg-[#0df2f2]/10" title="Edit">
+              <router-link
+                v-if="canEdit(blog)"
+                :to="`/dashboard/blogs/edit/${blog.id}`"
+                class="p-2 text-slate-500 hover:text-[#0df2f2] transition-colors rounded-lg hover:bg-[#0df2f2]/10"
+                title="Edit"
+              >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-              </button>
+              </router-link>
               <button v-if="isAdmin" @click="confirmDelete(blog)" class="p-2 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10" title="Delete">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Blog Form Modal -->
-    <div v-if="showCreateBlog" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-      <div class="bg-[#111318] border border-slate-700 p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="text-xl font-bold text-white">{{ isEditingBlog ? 'Edit Blog Post' : 'Create New Blog Post' }}</h3>
-          <button @click="closeBlogModal" class="text-slate-400 hover:text-white p-1">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-        <form @submit.prevent="submitBlog" class="space-y-5">
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1.5">Title</label>
-            <input v-model="blogForm.title" required class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1.5">Category (Tags)</label>
-            <input v-model="blogForm.category" placeholder="e.g. Urban, Lifestyle" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1.5">Short Description</label>
-            <textarea v-model="blogForm.description" rows="2" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none resize-none"></textarea>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1.5">Content (Markdown supported)</label>
-            <textarea v-model="blogForm.content" required rows="10" class="block w-full border border-slate-700 p-3 rounded-lg bg-[#101622] text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 focus:border-[#0df2f2]/50 outline-none font-mono text-sm resize-none"></textarea>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-300 mb-1.5">Cover Image</label>
-            <div v-if="isEditingBlog && blogForm.existingImage && !blogForm.image" class="mb-3 w-48 h-32 rounded-lg overflow-hidden border border-slate-700">
-              <img :src="getRefUrl(blogForm.existingImage)" class="w-full h-full object-cover" />
-            </div>
-            <input type="file" @change="handleBlogImageUpload" accept="image/*" class="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-[#0df2f2]/10 file:text-[#0df2f2] hover:file:bg-[#0df2f2]/20 cursor-pointer" />
-            <p v-if="isEditingBlog" class="text-xs text-slate-500 mt-1">Leave empty to keep current image.</p>
-          </div>
-          <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <button type="button" @click="closeBlogModal" class="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 font-medium transition-colors">Cancel</button>
-            <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-[#0df2f2] text-[#101622] rounded-lg hover:bg-[#0bd8d8] font-bold shadow-lg shadow-[#0df2f2]/20 transition-all disabled:opacity-50">
-              {{ submitting ? 'Saving...' : (isEditingBlog ? 'Save Changes' : 'Publish Post') }}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
 
@@ -152,14 +115,7 @@ const apiService = new ApiService()
 
 // State
 const loading = ref(false)
-const submitting = ref(false)
 const blogs = ref([])
-
-// Modal states
-const showCreateBlog = ref(false)
-const isEditingBlog = ref(false)
-const editingBlogId = ref(null)
-const blogForm = ref({ title: '', category: '', description: '', content: '', image: null, existingImage: '' })
 
 const showConfirmModal = ref(false)
 const deletingBlog = ref(null)
@@ -170,7 +126,6 @@ const rejectingBlog = ref(null)
 
 // Role helpers
 const isAdmin = computed(() => authStore.isAdmin)
-const isPublisher = computed(() => authStore.isPublisher)
 
 // Permission check
 const canEdit = (blog) => {
@@ -182,6 +137,7 @@ const getStatusClass = (status) => {
   switch (status) {
     case 'approved': return 'bg-emerald-500/20 text-emerald-400'
     case 'rejected': return 'bg-red-500/20 text-red-400'
+    case 'draft': return 'bg-slate-700/50 text-slate-300'
     default: return 'bg-yellow-500/20 text-yellow-400'
   }
 }
@@ -196,21 +152,18 @@ const getRefUrl = (filename) => {
 const getBlogImageUrl = (blog) => {
   if (!blog) return 'https://placehold.co/600x400?text=No+Image'
   
-  // Check for variants first (with backend URL prefix)
   if (blog.variants?.medium) {
     const url = blog.variants.medium
     if (url.startsWith('http')) return url
     return `${apiConfig.rootURL}${url}`
   }
   
-  // Check for image field
   if (blog.image) {
     if (blog.image.startsWith('http')) return blog.image
     if (blog.image.startsWith('/')) return `${apiConfig.rootURL}${blog.image}`
     return `${apiConfig.rootURL}/images/${blog.image}`
   }
   
-  // Fallback to photo_filename
   if (blog.photo_filename) return getRefUrl(blog.photo_filename)
   
   return 'https://placehold.co/600x400?text=No+Image'
@@ -243,78 +196,6 @@ const loadBlogs = async () => {
     console.error('Error loading blogs:', e)
   } finally {
     loading.value = false
-  }
-}
-
-// Blog actions
-const handleBlogImageUpload = (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-
-  if (file.size > 3 * 1024 * 1024) {
-    alert('File size too large. Max 3MB.')
-    e.target.value = ''
-    return
-  }
-  if (!['image/jpeg', 'image/png'].includes(file.type)) {
-    alert('Invalid file type. Only JPG and PNG allowed.')
-    e.target.value = ''
-    return
-  }
-
-  blogForm.value.image = file
-}
-
-const closeBlogModal = () => {
-  showCreateBlog.value = false
-  isEditingBlog.value = false
-  editingBlogId.value = null
-  blogForm.value = { title: '', category: '', description: '', content: '', image: null, existingImage: '' }
-}
-
-const openEditBlog = (blog) => {
-  isEditingBlog.value = true
-  editingBlogId.value = blog.id
-  blogForm.value = { 
-    title: blog.title, 
-    category: blog.tags || '', 
-    description: blog.description || blog.mini_desc || '', 
-    content: blog.content || '', 
-    image: null,
-    existingImage: blog.image || blog.photo_filename
-  }
-  showCreateBlog.value = true
-}
-
-const submitBlog = async () => {
-  submitting.value = true
-  try {
-    const fd = new FormData()
-    fd.append('title', blogForm.value.title)
-    fd.append('mini_desc', blogForm.value.description || '')
-    fd.append('content', blogForm.value.content)
-    fd.append('tags', blogForm.value.category || '')
-    
-    if (blogForm.value.image) {
-      fd.append('image', blogForm.value.image)
-    }
-
-    if (isEditingBlog.value) {
-      const updatedBlog = await apiService.updateBlog(editingBlogId.value, fd)
-      const index = blogs.value.findIndex(b => b.id === updatedBlog.id)
-      if (index !== -1) blogs.value[index] = updatedBlog
-      alert('Blog updated successfully')
-    } else {
-      const newBlog = await apiService.createBlog(fd)
-      blogs.value.unshift(newBlog)
-      alert('Blog published successfully')
-    }
-    
-    closeBlogModal()
-  } catch (e) {
-    alert(e.message)
-  } finally {
-    submitting.value = false
   }
 }
 

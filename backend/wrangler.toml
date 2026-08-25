@@ -17,4 +17,5 @@ binding = "BUCKET"
 bucket_name = "furban-media"
 
 [vars]
+JWT_SECRET = "dev-secret-key-change-in-prod"
 FRONTEND_URL = "https://furban.my.id"
