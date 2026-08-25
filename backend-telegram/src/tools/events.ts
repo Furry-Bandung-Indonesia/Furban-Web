@@ -25,7 +25,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'get_event_detail',
-      description: 'Get full event details along with available ticket tiers and configuration.',
+      description: 'Get full event details along with available ticket tiers, sales status, and configuration.',
       parameters: {
         type: 'object',
         properties: {
@@ -53,7 +53,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'create_event',
-      description: 'Create a new event in the ticketing system. Supports attaching banner photo, Google Maps link for auto-coordinates, and default Terms of Service.',
+      description: 'Create a new event in the ticketing system. Supports attaching banner photo, Google Maps link for auto-coordinates, default Terms of Service, and sales status configuration.',
       parameters: {
         type: 'object',
         properties: {
@@ -64,8 +64,12 @@ export const eventTools: ToolDefinition[] = [
           location_name: { type: 'string', description: 'Venue or location name' },
           location_lat: { type: 'number', description: 'Latitude coordinate' },
           location_long: { type: 'number', description: 'Longitude coordinate' },
-          google_maps_url: { type: 'string', description: 'Google Maps link (e.g. maps.app.goo.gl/xxx) to automatically extract lat/long coordinates' },
+          google_maps_url: { type: 'string', description: 'Google Maps link to automatically extract lat/long coordinates' },
           tos_text: { type: 'string', description: 'Terms of service for attendees. Set to "default" to use standard Furban Terms & Conditions template.' },
+          sales_status: { type: 'string', enum: ['available', 'sold_out', 'coming_soon', 'unavailable'], description: 'Ticket sales status: available (on sale), sold_out, coming_soon, unavailable (default available)' },
+          sales_open_time: { type: 'string', description: 'When ticket sales automatically open (YYYY-MM-DD HH:MM:SS format, optional)' },
+          sales_close_time: { type: 'string', description: 'When ticket sales automatically stop/close (YYYY-MM-DD HH:MM:SS format, optional)' },
+          additional_link: { type: 'string', description: 'Optional external website link or guide' },
           food_enabled: { type: 'boolean', description: 'Enable food options' },
           food_multi_select: { type: 'boolean', description: 'Allow multiple food choices' },
           food_options: { type: 'array', items: { type: 'string' }, description: 'List of food option names' },
@@ -83,7 +87,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'update_event',
-      description: 'Update an existing event. Can update details, coordinates from Google Maps, banner, or ToS.',
+      description: 'Update an existing event. Can update details, sales status, auto-close timing, coordinates from Google Maps, banner, or ToS.',
       parameters: {
         type: 'object',
         properties: {
@@ -97,6 +101,10 @@ export const eventTools: ToolDefinition[] = [
           location_long: { type: 'number' },
           google_maps_url: { type: 'string', description: 'Google Maps link to extract lat/long coordinates' },
           tos_text: { type: 'string', description: 'Terms of service. Set to "default" to reset to standard Furban ToS template.' },
+          sales_status: { type: 'string', enum: ['available', 'sold_out', 'coming_soon', 'unavailable'] },
+          sales_open_time: { type: 'string', description: 'Auto-open ticket sales at (YYYY-MM-DD HH:MM:SS)' },
+          sales_close_time: { type: 'string', description: 'Auto-close ticket sales at (YYYY-MM-DD HH:MM:SS)' },
+          additional_link: { type: 'string' },
           food_enabled: { type: 'boolean' },
           food_multi_select: { type: 'boolean' },
           food_options: { type: 'array', items: { type: 'string' } },
@@ -104,6 +112,23 @@ export const eventTools: ToolDefinition[] = [
           drinks_multi_select: { type: 'boolean' },
           drink_options: { type: 'array', items: { type: 'string' } },
           banner_file_id: { type: 'string', description: 'Telegram photo file_id for new banner' },
+        },
+        required: ['eventId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_event_sales_status',
+      description: 'Update the ticket sales status and automatic open/close times for an event. Statuses: available (On Sale), sold_out (Sold Out), coming_soon (Coming Soon), unavailable (Unavailable / Halted).',
+      parameters: {
+        type: 'object',
+        properties: {
+          eventId: { type: 'string', description: 'The UUID of the event' },
+          sales_status: { type: 'string', enum: ['available', 'sold_out', 'coming_soon', 'unavailable'], description: 'Sales status' },
+          sales_open_time: { type: 'string', description: 'Auto-open sales at (YYYY-MM-DD HH:MM:SS or null to clear)' },
+          sales_close_time: { type: 'string', description: 'Auto-close sales at (YYYY-MM-DD HH:MM:SS or null to clear)' },
         },
         required: ['eventId'],
       },
@@ -127,7 +152,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'change_event_status',
-      description: 'Change status of an event (draft -> published -> closed).',
+      description: 'Change publication status of an event (draft -> published -> closed).',
       parameters: {
         type: 'object',
         properties: {
@@ -184,7 +209,6 @@ export async function executeEventTool(
       if (args.search) params.append('search', args.search)
       const q = params.toString() ? `?${params.toString()}` : ''
 
-      // Use management endpoint to return all events (draft, published, closed)
       const result = await apiClient.ticketing('GET', `/api/manage${q}`)
       return result
     }
@@ -195,6 +219,11 @@ export async function executeEventTool(
 
     case 'parse_google_maps_url': {
       return resolveGoogleMapsLocation(args.url)
+    }
+
+    case 'set_event_sales_status': {
+      const { eventId, ...salesData } = args
+      return apiClient.ticketing('PATCH', `/api/events/${eventId}/sales-status`, salesData)
     }
 
     case 'create_event': {

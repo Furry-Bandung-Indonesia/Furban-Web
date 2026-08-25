@@ -328,27 +328,4 @@ app.post('/webhook/:secret?', async (c) => {
   return c.json({ ok: true })
 })
 
-// ═══════════════════════════════════════════════════
-// DEVELOPMENT TESTING ENDPOINT (Local text testing)
-// ═══════════════════════════════════════════════════
-app.post('/api/test-message', async (c) => {
-  const { message, telegramUserId = 123456789 } = await c.req.json()
-  if (!message) return c.json({ error: 'message required' }, 400)
-
-  const telegramClient = new TelegramClient(c.env.TELEGRAM_BOT_TOKEN || 'dummy')
-  const conversationManager = new ConversationManager(c.env.KV)
-  const aiEngine = new AiEngine(c.env, telegramClient)
-
-  const state = await conversationManager.load(
-    telegramUserId,
-    telegramUserId,
-    'test-admin-uuid',
-    'admin',
-    c.env.ZANSLAB_DEFAULT_MODEL || 'an/claude-opus-5'
-  )
-
-  const result = await aiEngine.processMessage(message, state)
-  return c.json(result)
-})
-
 export default app

@@ -81,6 +81,17 @@ IDENTITY & BEHAVIOR RULES
     - If the user sends a photo or mentions uploading a banner, the photo file_id will be available in the context.
     - Use the banner_file_id parameter when creating or updating an event with a banner photo.
 
+14. TICKET SALES & SALES STATUS:
+    - Events have ticket sales controls:
+      • \`sales_status\`:
+        - \`available\` (On Sale): Tickets are currently available for purchase/claims.
+        - \`sold_out\` (Sold Out): Marked as sold out (blocks all purchases).
+        - \`coming_soon\` (Coming Soon): Blocks purchases until \`sales_open_time\`.
+        - \`unavailable\` (Unavailable): Ticket sales halted/disabled.
+      • \`sales_open_time\`: Auto-open sales at (YYYY-MM-DD HH:MM:SS).
+      • \`sales_close_time\`: Auto-close sales at (YYYY-MM-DD HH:MM:SS). Tickets automatically stop selling after this time.
+    - Use \`set_event_sales_status\` to modify sales statuses or auto-close schedule, or configure them during \`create_event\` / \`update_event\`.
+
 ═══════════════════════════════════════════════════
 AVAILABLE SERVICES & DATA SUMMARY
 ═══════════════════════════════════════════════════

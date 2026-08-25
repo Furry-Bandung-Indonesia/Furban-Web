@@ -1,10 +1,10 @@
 /**
  * Google Maps Link & Coordinate Extractor
- * Supports:
- * - Short links: https://maps.app.goo.gl/XXXXXX, https://goo.gl/maps/XXXXXX
- * - Standard place URLs: https://www.google.com/maps/place/Place+Name/@-6.917464,107.619123,17z/...
- * - Query URLs: https://www.google.com/maps?q=-6.917464,107.619123
- * - Protobuf coordinates: !3d-6.917464!4d107.619123
+ * Multi-layer coordinate resolution:
+ * 1. Direct URL regex: !3d/!4d, /@lat,long, ?q=lat,long
+ * 2. Short link redirection (maps.app.goo.gl -> google.com/maps/place/...)
+ * 3. Feature ID (ftid / 0x...:0x...) resolution -> maps.google.com/maps?ftid=...
+ * 4. Place name cleaning & Geocoding fallback
  */
 
 export interface GoogleMapsLocationResult {
@@ -21,20 +21,18 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
     return { latitude: null, longitude: null, place_name: null, resolved_url: '', success: false, message: 'Invalid URL provided' }
   }
 
-  // 1. Extract URL if surrounded by other text
+  // 1. Extract URL
   const urlMatch = inputUrl.match(/https?:\/\/[^\s"'<>]+/i)
   let currentUrl = urlMatch ? urlMatch[0] : inputUrl.trim()
-
-  // Clean trailing punctuation
   currentUrl = currentUrl.replace(/[.,;!?)]+$/, '')
 
   let lat: number | null = null
   let long: number | null = null
   let placeName: string | null = null
+  let ftid: string | null = null
   let resolvedUrl = currentUrl
 
-  // Helper to extract coordinates and place name from any URL or text
-  const checkCoordinates = (str: string) => {
+  const checkCoordinatesInText = (str: string) => {
     if (!str) return
 
     let decoded = str
@@ -42,39 +40,38 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
       decoded = decodeURIComponent(str)
     } catch {}
 
-    // Pattern 1: /@(-?\d+\.\d+),(-?\d+\.\d+)
+    // Priority 1: Exact Place Pin Protobuf !3d(lat)!4d(long) or !8m2!3d(lat)!4d(long)
     if (lat === null) {
-      const atMatch = decoded.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-      if (atMatch) {
-        lat = parseFloat(atMatch[1])
-        long = parseFloat(atMatch[2])
-      }
-    }
-
-    // Pattern 2: !3d(-?\d+\.\d+)!4d(-?\d+\.\d+)
-    if (lat === null) {
-      const protoMatch = decoded.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+      const protoMatch = decoded.match(/!(?:8m2!)?3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
       if (protoMatch) {
         lat = parseFloat(protoMatch[1])
         long = parseFloat(protoMatch[2])
       }
     }
 
-    // Pattern 3: ?q=lat,long or &ll=lat,long or ?query=lat,long or ?center=lat,long
+    // Priority 2: Camera Viewport /@(lat),(long)
     if (lat === null) {
-      const qMatch = decoded.match(/[?&](?:q|ll|query|center|daddr|saddr)=(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/i)
+      const atMatch = decoded.match(/@(-?\d+\.\d{3,}),(-?\d+\.\d{3,})/)
+      if (atMatch) {
+        lat = parseFloat(atMatch[1])
+        long = parseFloat(atMatch[2])
+      }
+    }
+
+    // Priority 3: Query params ?q=(lat),(long) or &ll=(lat),(long)
+    if (lat === null) {
+      const qMatch = decoded.match(/[?&](?:q|ll|query|daddr|saddr)=(-?\d+\.\d{3,})[,\s]+(-?\d+\.\d{3,})/i)
       if (qMatch) {
         lat = parseFloat(qMatch[1])
         long = parseFloat(qMatch[2])
       }
     }
 
-    // Pattern 4: window.APP_INITIALIZATION_STATE array coordinates [null,null,-6.123,107.123]
-    if (lat === null) {
-      const arrMatch = decoded.match(/\[null,null,(-?\d+\.\d+),(-?\d+\.\d+)\]/)
-      if (arrMatch) {
-        lat = parseFloat(arrMatch[1])
-        long = parseFloat(arrMatch[2])
+    // Extract Feature ID if present (e.g. 0x2e68e727f9c63d7d:0xfcdaa626835e74fa)
+    if (!ftid) {
+      const ftidMatch = decoded.match(/1s(0x[0-9a-f]+:0x[0-9a-f]+)/i) || decoded.match(/ftid=(0x[0-9a-f]+:0x[0-9a-f]+)/i)
+      if (ftidMatch) {
+        ftid = ftidMatch[1]
       }
     }
 
@@ -82,15 +79,17 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
     if (!placeName) {
       const placeMatch = decoded.match(/\/place\/([^/@?]+)/)
       if (placeMatch) {
-        placeName = placeMatch[1].replace(/\+/g, ' ').trim()
+        let rawName = placeMatch[1].replace(/\+/g, ' ').trim()
+        rawName = cleanPlaceName(rawName)
+        if (rawName) placeName = rawName
       }
     }
   }
 
-  // First check the input URL itself
-  checkCoordinates(currentUrl)
+  // Check initial URL
+  checkCoordinatesInText(currentUrl)
 
-  // Step-by-step redirect resolution (up to 6 hops)
+  // Follow redirects step-by-step
   let hops = 0
   while (hops < 6) {
     hops++
@@ -109,39 +108,26 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
       if (location) {
         const nextUrl = new URL(location, currentUrl).toString()
         resolvedUrl = nextUrl
-        checkCoordinates(nextUrl)
+        checkCoordinatesInText(nextUrl)
         currentUrl = nextUrl
-        if (lat !== null && long !== null) {
-          break
-        }
+        if (lat !== null && long !== null) break
         continue
       }
 
-      // If we reached the final page (status 200)
       if (res.ok) {
         resolvedUrl = res.url || currentUrl
-        checkCoordinates(resolvedUrl)
+        checkCoordinatesInText(resolvedUrl)
 
         const body = await res.text()
-        checkCoordinates(body)
+        checkCoordinatesInText(body)
 
-        // Check HTML staticmap
-        if (lat === null) {
-          const staticMatch = body.match(/center=(-?\d+\.\d+)%2C(-?\d+\.\d+)/i) ||
-                              body.match(/center=(-?\d+\.\d+),(-?\d+\.\d+)/i)
-          if (staticMatch) {
-            lat = parseFloat(staticMatch[1])
-            long = parseFloat(staticMatch[2])
-          }
-        }
-
-        // Check <title> for place name
+        // Try extracting place name from <title>
         if (!placeName) {
           const titleMatch = body.match(/<title>([^<]+)<\/title>/i)
           if (titleMatch) {
             const rawTitle = titleMatch[1].replace(/\s*-\s*Google Maps\s*$/i, '').trim()
             if (rawTitle && !rawTitle.toLowerCase().includes('google maps')) {
-              placeName = rawTitle
+              placeName = cleanPlaceName(rawTitle)
             }
           }
         }
@@ -150,6 +136,55 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
     } catch (e: any) {
       console.warn(`Error resolving maps URL hop ${hops}:`, e)
       break
+    }
+  }
+
+  // 3. Feature ID resolution (ftid)
+  if ((lat === null || long === null) && ftid) {
+    try {
+      const ftidUrl = `https://maps.google.com/maps?ftid=${ftid}&hl=en`
+      const ftidRes = await fetch(ftidUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      })
+      if (ftidRes.ok) {
+        const ftidBody = await ftidRes.text()
+        checkCoordinatesInText(ftidRes.url || '')
+        checkCoordinatesInText(ftidBody)
+      }
+    } catch (e) {
+      console.warn('FTID lookup failed:', e)
+    }
+  }
+
+  // 4. Geocoding Fallback
+  if ((lat === null || long === null) && placeName) {
+    try {
+      const cleaned = cleanPlaceName(placeName)
+      // Try with full cleaned name, or primary name before first comma
+      const queries = [cleaned, cleaned.split(',')[0].trim()]
+      for (const q of queries) {
+        if (!q || q.length < 3) continue
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`, {
+          headers: {
+            'User-Agent': 'FurbanTelegramBot/1.0 (admin@furban.my.id)',
+            'Accept': 'application/json',
+          },
+        })
+
+        if (geoRes.ok) {
+          const geoData = await geoRes.json() as any[]
+          if (Array.isArray(geoData) && geoData.length > 0 && geoData[0].lat && geoData[0].lon) {
+            lat = parseFloat(geoData[0].lat)
+            long = parseFloat(geoData[0].lon)
+            break
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Geocoding fallback failed:', e)
     }
   }
 
@@ -171,4 +206,15 @@ export async function resolveGoogleMapsLocation(inputUrl: string): Promise<Googl
     success: false,
     message: 'Could not extract exact latitude and longitude coordinates from the Google Maps link.',
   }
+}
+
+/**
+ * Clean Plus Code, postal codes, and noisy tokens from place names
+ */
+function cleanPlaceName(name: string): string {
+  if (!name) return ''
+  return name
+    .replace(/^[0-9A-Z]{4}\s*\+?\s*[0-9A-Z]{2,4}\s*,?\s*/i, '') // strip plus code prefix "3JP2+F7G "
+    .replace(/^[0-9A-Z]{4}\s+[0-9A-Z]{2,4}\s*,?\s*/i, '')     // strip space-separated plus code "3JP2 F7G "
+    .trim()
 }

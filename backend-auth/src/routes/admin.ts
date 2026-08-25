@@ -14,20 +14,52 @@ app.use('*', authMiddleware, roleGuard(['admin']))
 
 /**
  * GET /auth/admin/users
- * Get all users (admin only)
+ * Get all users with optional search and role filters (admin only)
  */
 app.get('/users', async (c) => {
   try {
-    const { results } = await c.env.DB.prepare(`
+    const search = c.req.query('search') || c.req.query('q')
+    const role = c.req.query('role')
+
+    let query = `
       SELECT uuid, email, role, legal_name, nickname, first_name, last_name, 
              date_of_birth, social_link, profile_image_url, 
              telegram_id, telegram_username, telegram_linked_at,
              is_active, pending_profile, created_at, updated_at
-      FROM users 
-      ORDER BY created_at DESC
-    `).all()
+      FROM users
+    `
+    const conditions: string[] = []
+    const bindings: any[] = []
 
-    return c.json(results)
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`
+      conditions.push(`(
+        nickname LIKE ? OR
+        email LIKE ? OR
+        legal_name LIKE ? OR
+        first_name LIKE ? OR
+        last_name LIKE ? OR
+        telegram_username LIKE ? OR
+        CAST(telegram_id AS TEXT) LIKE ?
+      )`)
+      bindings.push(term, term, term, term, term, term, term)
+    }
+
+    if (role && role.trim()) {
+      conditions.push(`role = ?`)
+      bindings.push(role.trim())
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ` + conditions.join(' AND ')
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT 100`
+
+    const stmt = c.env.DB.prepare(query)
+    const { results } = bindings.length > 0 ? await stmt.bind(...bindings).all() : await stmt.all()
+
+    return c.json(results || [])
   } catch (e: any) {
     console.error('Get Users Error:', e)
     return c.json({ message: 'Failed to get users', error: e.message }, 500)

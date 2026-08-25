@@ -171,14 +171,11 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
         tos_text: formData.get('tos_text') as string,
         location_lat: formData.get('location_lat'),
         location_long: formData.get('location_long'),
-        location_name: formData.get('location_name') as string,
-        start_time: formData.get('start_time') as string,
-        end_time: formData.get('end_time') as string,
-        food_enabled: formData.get('food_enabled'),
-        food_multi_select: formData.get('food_multi_select'), drinks_enabled: formData.get('drinks_enabled'),
-        drinks_multi_select: formData.get('drinks_multi_select'),
         drink_options: formData.get('drink_options') as string, food_options: formData.get('food_options') as string,
         status: formData.get('status') as string,
+        sales_status: formData.get('sales_status') as string,
+        sales_open_time: formData.get('sales_open_time') as string,
+        sales_close_time: formData.get('sales_close_time') as string,
         additional_link: formData.get('additional_link') as string,
       }
       bannerFile = formData.get('banner') as File | null
@@ -206,8 +203,9 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       `INSERT INTO events
        (event_uuid, creator_uuid, event_name, description, banner_filename, tos_text,
         location_lat, location_long, location_name, start_time, end_time,
-          food_enabled, food_multi_select, food_options, drinks_enabled, drinks_multi_select, drink_options, status, additional_link, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        food_enabled, food_multi_select, food_options, drinks_enabled, drinks_multi_select, drink_options, status,
+        sales_status, sales_open_time, sales_close_time, additional_link, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       uuid,
       user.sub,
@@ -227,6 +225,9 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
       body.drink_options || '[]',
       body.status || 'draft',
+      body.sales_status || 'available',
+      body.sales_open_time || null,
+      body.sales_close_time || null,
       body.additional_link || null,
       now,
       now,
@@ -380,6 +381,50 @@ events.patch('/:eventId/status', authMiddleware, eventPermission('eventId'), req
   ).bind(status, new Date().toISOString(), eventId).run()
 
   return c.json({ message: `Event status changed to ${status}` })
+})
+
+/**
+ * PATCH /events/:eventId/sales-status
+ * Update ticket sales status and open/close sales times. Admin only.
+ */
+events.patch('/:eventId/sales-status', authMiddleware, eventPermission('eventId'), requireEventAdmin, async (c) => {
+  const eventId = c.req.param('eventId')
+  const { sales_status, sales_open_time, sales_close_time } = await c.req.json()
+
+  const validStatuses = ['available', 'sold_out', 'coming_soon', 'unavailable']
+  if (sales_status && !validStatuses.includes(sales_status)) {
+    return c.json({ message: 'Invalid sales_status. Must be: available, sold_out, coming_soon, unavailable' }, 400)
+  }
+
+  const updates: string[] = []
+  const values: any[] = []
+
+  if (sales_status !== undefined) {
+    updates.push('sales_status = ?')
+    values.push(sales_status)
+  }
+  if (sales_open_time !== undefined) {
+    updates.push('sales_open_time = ?')
+    values.push(sales_open_time || null)
+  }
+  if (sales_close_time !== undefined) {
+    updates.push('sales_close_time = ?')
+    values.push(sales_close_time || null)
+  }
+
+  if (updates.length === 0) {
+    return c.json({ message: 'No sales fields provided' }, 400)
+  }
+
+  updates.push('updated_at = ?')
+  values.push(new Date().toISOString())
+  values.push(eventId)
+
+  await c.env.DB.prepare(
+    `UPDATE events SET ${updates.join(', ')} WHERE event_uuid = ?`
+  ).bind(...values).run()
+
+  return c.json({ message: 'Sales status updated successfully' })
 })
 
 /**

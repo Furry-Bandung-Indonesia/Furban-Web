@@ -4,7 +4,9 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
         <h2 class="text-2xl font-bold text-white">User Management</h2>
-        <p class="text-slate-400 text-sm mt-1">Manage platform access and roles</p>
+        <p class="text-slate-400 text-sm mt-1">
+          Manage platform access, roles, and accounts ({{ filteredUsers.length }} of {{ users.length }} users)
+        </p>
       </div>
       <button @click="openCreateUser"
         class="bg-[#0df2f2] hover:bg-[#0bd8d8] text-[#101622] px-5 py-2.5 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-[#0df2f2]/20 flex items-center gap-2">
@@ -13,14 +15,85 @@
       </button>
     </div>
 
+    <!-- Search & Filters Bar -->
+    <div class="bg-[#111318] border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div class="relative w-full md:w-80">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          placeholder="Search by name, email, nickname..." 
+          class="w-full bg-[#0d0f13] border border-slate-700/80 rounded-lg pl-9 pr-8 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none transition-all"
+        />
+        <button 
+          v-if="searchQuery" 
+          @click="searchQuery = ''" 
+          class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <div class="flex flex-wrap w-full md:w-auto items-center gap-3">
+        <!-- Role Filter -->
+        <select 
+          v-model="selectedRole" 
+          class="bg-[#0d0f13] border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none"
+        >
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="photographer">Photographer</option>
+          <option value="publisher">Publisher</option>
+          <option value="user">User</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select 
+          v-model="selectedStatus" 
+          class="bg-[#0d0f13] border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none"
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+
+        <!-- Items per page -->
+        <select 
+          v-model="perPage" 
+          class="bg-[#0d0f13] border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-2 focus:ring-[#0df2f2]/40 outline-none"
+        >
+          <option :value="10">10 / page</option>
+          <option :value="25">25 / page</option>
+          <option :value="50">50 / page</option>
+          <option :value="100">100 / page</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Loading -->
     <div v-if="loading" class="text-center py-16">
       <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#0df2f2] mx-auto"></div>
       <p class="text-slate-500 mt-4 text-sm">Loading users...</p>
     </div>
 
+    <!-- Empty State -->
+    <div v-else-if="filteredUsers.length === 0" class="text-center py-16 bg-[#111318] border border-slate-800 rounded-xl">
+      <svg class="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+      <p class="text-slate-400 font-medium">No users found</p>
+      <p class="text-slate-500 text-sm mt-1">Try adjusting your search or filters.</p>
+      <button 
+        v-if="searchQuery || selectedRole || selectedStatus" 
+        @click="resetFilters" 
+        class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors"
+      >
+        Clear Filters
+      </button>
+    </div>
+
     <!-- User Table -->
-    <div v-else class="bg-[#111318] border border-slate-800 rounded-xl overflow-hidden">
+    <div v-else class="bg-[#111318] border border-slate-800 rounded-xl overflow-hidden shadow-lg">
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-800">
           <thead class="bg-[#0d0f13]">
@@ -28,11 +101,12 @@
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">User</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
               <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Telegram</th>
               <th class="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/50">
-            <tr v-for="user in users" :key="user.uuid" class="hover:bg-slate-800/40 transition-colors">
+            <tr v-for="user in paginatedUsers" :key="user.uuid" class="hover:bg-slate-800/40 transition-colors">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center gap-3">
                   <div class="flex-shrink-0 h-10 w-10">
@@ -45,7 +119,7 @@
                   </div>
                   <div>
                     <div class="text-sm font-semibold text-white">{{ user.nickname || user.legal_name || 'No name' }}</div>
-                    <div class="text-sm text-slate-500">{{ user.email }}</div>
+                    <div class="text-xs text-slate-500">{{ user.email }}</div>
                   </div>
                 </div>
               </td>
@@ -58,6 +132,12 @@
                 <span :class="user.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'" class="px-2.5 py-1 text-xs font-bold rounded-full">
                   {{ user.is_active ? 'Active' : 'Suspended' }}
                 </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span v-if="user.telegram_id" class="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                  {{ user.telegram_username ? '@' + user.telegram_username : user.telegram_id }}
+                </span>
+                <span v-else class="text-xs text-slate-600">—</span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right">
                 <div class="flex justify-end gap-1">
@@ -75,6 +155,44 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination Bar -->
+      <div class="px-6 py-4 bg-[#0d0f13] border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-xs text-slate-400">
+          Showing <span class="font-bold text-white">{{ paginationStart }}</span> to <span class="font-bold text-white">{{ paginationEnd }}</span> of <span class="font-bold text-white">{{ filteredUsers.length }}</span> users
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <!-- Previous Button -->
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage <= 1" 
+            class="px-3 py-1.5 rounded-lg border border-slate-800 bg-[#111318] text-xs font-semibold text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            Previous
+          </button>
+
+          <!-- Page Numbers -->
+          <button 
+            v-for="page in visiblePages" 
+            :key="page" 
+            @click="currentPage = page" 
+            :class="currentPage === page ? 'bg-[#0df2f2] text-[#101622] font-bold border-[#0df2f2]' : 'bg-[#111318] text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'"
+            class="min-w-[32px] h-8 px-2 rounded-lg border text-xs font-semibold transition-all flex items-center justify-center"
+          >
+            {{ page }}
+          </button>
+
+          <!-- Next Button -->
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage >= totalPages" 
+            class="px-3 py-1.5 rounded-lg border border-slate-800 bg-[#111318] text-xs font-semibold text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
 
@@ -148,42 +266,40 @@
             <label class="block text-sm font-medium text-slate-300 mb-2">Role</label>
             <div class="grid grid-cols-2 gap-2">
               <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'user' ? 'border-slate-500 bg-slate-800' : 'border-slate-700 hover:border-slate-600'">
-                <input type="radio" v-model="userForm.role" value="user" class="form-radio h-4 w-4 text-[#0df2f2]" />
-                <span class="text-slate-300 text-sm">User</span>
+                <input type="radio" v-model="userForm.role" value="user" class="text-[#0df2f2] focus:ring-0" />
+                <span class="text-sm font-medium text-white">User</span>
               </label>
-              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'photographer' ? 'border-blue-500/50 bg-blue-500/10' : 'border-slate-700 hover:border-slate-600'">
-                <input type="radio" v-model="userForm.role" value="photographer" class="form-radio h-4 w-4 text-blue-500" />
-                <span class="text-slate-300 text-sm">Photographer</span>
+              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'publisher' ? 'border-emerald-500 bg-emerald-950/40' : 'border-slate-700 hover:border-slate-600'">
+                <input type="radio" v-model="userForm.role" value="publisher" class="text-emerald-400 focus:ring-0" />
+                <span class="text-sm font-medium text-emerald-400">Publisher</span>
               </label>
-              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'publisher' ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 hover:border-slate-600'">
-                <input type="radio" v-model="userForm.role" value="publisher" class="form-radio h-4 w-4 text-emerald-500" />
-                <span class="text-slate-300 text-sm">Publisher</span>
+              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'photographer' ? 'border-blue-500 bg-blue-950/40' : 'border-slate-700 hover:border-slate-600'">
+                <input type="radio" v-model="userForm.role" value="photographer" class="text-blue-400 focus:ring-0" />
+                <span class="text-sm font-medium text-blue-400">Photographer</span>
               </label>
-              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'admin' ? 'border-purple-500/50 bg-purple-500/10' : 'border-slate-700 hover:border-slate-600'">
-                <input type="radio" v-model="userForm.role" value="admin" class="form-radio h-4 w-4 text-purple-500" />
-                <span class="text-slate-300 text-sm">Admin</span>
+              <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all" :class="userForm.role === 'admin' ? 'border-purple-500 bg-purple-950/40' : 'border-slate-700 hover:border-slate-600'">
+                <input type="radio" v-model="userForm.role" value="admin" class="text-purple-400 focus:ring-0" />
+                <span class="text-sm font-medium text-purple-400">Admin</span>
               </label>
             </div>
           </div>
 
-          <!-- Status Toggle -->
-          <div>
-            <label class="flex items-center gap-3 cursor-pointer">
-              <div class="relative">
-                <input type="checkbox" v-model="userForm.is_active" :true-value="1" :false-value="0" class="sr-only" />
-                <div :class="userForm.is_active ? 'bg-[#0df2f2]' : 'bg-slate-600'" class="w-10 h-5 rounded-full transition-colors"></div>
-                <div class="dot absolute w-4 h-4 bg-white rounded-full shadow top-0.5 left-0.5 transition-transform" :class="{ 'translate-x-5': userForm.is_active }"></div>
-              </div>
-              <span class="text-sm font-medium text-slate-300">
-                {{ userForm.is_active ? 'Account Active' : 'Account Suspended' }}
-              </span>
+          <!-- Status toggle -->
+          <div v-if="isEditingUser" class="flex items-center justify-between p-3 border border-slate-700 rounded-lg bg-[#101622]">
+            <span class="text-sm font-medium text-slate-300">Account Active</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="userForm.is_active" :true-value="1" :false-value="0" class="sr-only peer" />
+              <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0df2f2]"></div>
             </label>
           </div>
 
           <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <button type="button" @click="closeUserModal" class="px-5 py-2.5 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 font-medium transition-colors">Cancel</button>
-            <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-[#0df2f2] text-[#101622] rounded-lg hover:bg-[#0bd8d8] font-bold shadow-lg shadow-[#0df2f2]/20 transition-all disabled:opacity-50">
-              {{ submitting ? 'Saving...' : (isEditingUser ? 'Update User' : 'Create User') }}
+            <button type="button" @click="closeUserModal" class="px-4 py-2.5 bg-slate-700 text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-600 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" :disabled="submitting" class="px-6 py-2.5 bg-[#0df2f2] text-[#101622] rounded-lg text-sm font-bold hover:bg-[#0bd8d8] disabled:opacity-50 transition-colors shadow-lg shadow-[#0df2f2]/20 flex items-center gap-2">
+              <div v-if="submitting" class="animate-spin rounded-full h-4 w-4 border-b-2 border-[#101622]"></div>
+              {{ isEditingUser ? 'Save Changes' : 'Create User' }}
             </button>
           </div>
         </form>
@@ -192,11 +308,10 @@
 
     <!-- User Detail Modal -->
     <div v-if="showUserDetail" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-      <div class="bg-[#111318] border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <!-- Header with avatar -->
-        <div class="relative p-6 pb-4 border-b border-slate-800">
+      <div class="bg-[#111318] border border-slate-700 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div class="p-6 bg-[#0d0f13] border-b border-slate-800 relative">
           <button @click="showUserDetail = false" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
           <div class="flex items-center gap-4">
             <div class="flex-shrink-0">
@@ -240,7 +355,7 @@
               </div>
               <div class="bg-[#0d0f13] rounded-lg p-3">
                 <p class="text-xs text-slate-500 mb-1">Social Link</p>
-                <p class="text-sm text-white font-medium">{{ selectedUser?.social_link || '—' }}</p>
+                <p class="text-sm text-white font-medium truncate">{{ selectedUser?.social_link || '—' }}</p>
               </div>
             </div>
           </div>
@@ -258,8 +373,10 @@
                 <p class="text-sm text-white font-medium">{{ selectedUser?.nickname || '—' }}</p>
               </div>
               <div class="bg-[#0d0f13] rounded-lg p-3">
-                <p class="text-xs text-slate-500 mb-1">Email</p>
-                <p class="text-sm text-white font-medium">{{ selectedUser?.email || '—' }}</p>
+                <p class="text-xs text-slate-500 mb-1">Telegram Linked</p>
+                <p class="text-sm text-white font-medium">
+                  {{ selectedUser?.telegram_id ? (selectedUser.telegram_username ? '@' + selectedUser.telegram_username : selectedUser.telegram_id) : 'Not Linked' }}
+                </p>
               </div>
               <div class="bg-[#0d0f13] rounded-lg p-3">
                 <p class="text-xs text-slate-500 mb-1">Member Since</p>
@@ -293,7 +410,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import authApi from '@/services/authApi'
 import { getAuthImageUrl } from '@/config/api'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
@@ -302,6 +419,13 @@ import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 const loading = ref(false)
 const submitting = ref(false)
 const users = ref([])
+
+// Filters & Pagination state
+const searchQuery = ref('')
+const selectedRole = ref('')
+const selectedStatus = ref('')
+const currentPage = ref(1)
+const perPage = ref(10)
 
 // Modal state
 const showCreateUser = ref(false)
@@ -344,6 +468,85 @@ const getRoleBadgeClass = (role) => {
     case 'publisher': return 'bg-emerald-500/20 text-emerald-400'
     default: return 'bg-slate-700 text-slate-300'
   }
+}
+
+// Filtered Users
+const filteredUsers = computed(() => {
+  return users.value.filter(u => {
+    // Search query matching
+    if (searchQuery.value && searchQuery.value.trim()) {
+      const q = searchQuery.value.toLowerCase().trim()
+      const matches = 
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.nickname && u.nickname.toLowerCase().includes(q)) ||
+        (u.legal_name && u.legal_name.toLowerCase().includes(q)) ||
+        (u.first_name && u.first_name.toLowerCase().includes(q)) ||
+        (u.last_name && u.last_name.toLowerCase().includes(q)) ||
+        (u.telegram_username && u.telegram_username.toLowerCase().includes(q)) ||
+        (u.telegram_id && String(u.telegram_id).includes(q))
+
+      if (!matches) return false
+    }
+
+    // Role filter
+    if (selectedRole.value && u.role !== selectedRole.value) {
+      return false
+    }
+
+    // Status filter
+    if (selectedStatus.value) {
+      const isActive = selectedStatus.value === 'active'
+      if (Boolean(u.is_active) !== isActive) return false
+    }
+
+    return true
+  })
+})
+
+// Pagination
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / perPage.value)))
+
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value
+  return filteredUsers.value.slice(start, start + perPage.value)
+})
+
+const paginationStart = computed(() => {
+  if (filteredUsers.value.length === 0) return 0
+  return (currentPage.value - 1) * perPage.value + 1
+})
+
+const paginationEnd = computed(() => {
+  return Math.min(currentPage.value * perPage.value, filteredUsers.value.length)
+})
+
+const visiblePages = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  const pages = []
+  
+  let start = Math.max(1, current - 2)
+  let end = Math.min(total, start + 4)
+  if (end - start < 4) {
+    start = Math.max(1, end - 4)
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+// Reset page when filters change
+watch([searchQuery, selectedRole, selectedStatus, perPage], () => {
+  currentPage.value = 1
+})
+
+const resetFilters = () => {
+  searchQuery.value = ''
+  selectedRole.value = ''
+  selectedStatus.value = ''
+  currentPage.value = 1
 }
 
 // Load users

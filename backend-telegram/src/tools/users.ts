@@ -6,10 +6,13 @@ export const userTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'list_users',
-      description: 'List all registered platform users from the auth service.',
+      description: 'List registered platform users from the auth service. Supports filtering by search term or role.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          search: { type: 'string', description: 'Search term for name, nickname, email, or telegram' },
+          role: { type: 'string', enum: ['user', 'admin', 'photographer', 'publisher'], description: 'Filter by role' },
+        },
       },
     },
   },
@@ -99,11 +102,11 @@ export const userTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'search_users',
-      description: 'Search users by nickname, email, legal_name, or real name (min 2 chars).',
+      description: 'Search users by nickname, email, legal name, first/last name, Telegram username, or Telegram ID.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Search term' },
+          query: { type: 'string', description: 'Search keyword' },
         },
         required: ['query'],
       },
@@ -129,7 +132,11 @@ export async function executeUserTool(
 ): Promise<any> {
   switch (toolName) {
     case 'list_users': {
-      return apiClient.auth('GET', '/auth/admin/users')
+      const params = new URLSearchParams()
+      if (args.search) params.append('search', args.search)
+      if (args.role) params.append('role', args.role)
+      const q = params.toString() ? `?${params.toString()}` : ''
+      return apiClient.auth('GET', `/auth/admin/users${q}`)
     }
 
     case 'get_user': {
@@ -154,7 +161,8 @@ export async function executeUserTool(
     }
 
     case 'search_users': {
-      return apiClient.auth('GET', `/auth/users/search?q=${encodeURIComponent(args.query)}`)
+      const searchParam = encodeURIComponent(args.query || '')
+      return apiClient.auth('GET', `/auth/admin/users?search=${searchParam}`)
     }
 
     case 'get_auth_stats': {
