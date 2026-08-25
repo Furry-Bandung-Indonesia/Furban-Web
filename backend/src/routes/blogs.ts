@@ -154,17 +154,27 @@ app.post('/upload-image', authMiddleware, roleGuard(['publisher', 'admin']), asy
   }
 })
 
-// Protected: Create (Supports FormData with Image & Draft status)
+// Protected: Create (Supports FormData with Image & JSON, Draft status)
 app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
   try {
-    const body = await c.req.parseBody()
-    const image = body['image']
+    let body: any
+    let image: any = null
+
+    const contentType = c.req.header('content-type') || ''
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await c.req.parseBody()
+      body = formData
+      image = formData['image']
+    } else {
+      body = await c.req.json().catch(() => ({}))
+    }
+
     // Safely access fields, ensure they are strings
-    const title = body['title'] as string || 'Untitled'
-    const content = body['content'] as string || ''
-    const mini_desc = body['mini_desc'] as string || ''
-    const tags = body['tags'] as string || ''
-    const requestedStatus = (body['status'] as string || '').toLowerCase()
+    const title = (body['title'] as string) || 'Untitled'
+    const content = (body['content'] as string) || ''
+    const mini_desc = (body['mini_desc'] as string) || ''
+    const tags = (body['tags'] as string) || ''
+    const requestedStatus = ((body['status'] as string) || '').toLowerCase()
 
     const user = c.get('user')
     const id = crypto.randomUUID()
@@ -204,69 +214,87 @@ app.post('/', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
   }
 })
 
-// Protected: Update (Supports FormData, Image Update, and Status Handling)
+// Protected: Update (Supports FormData, JSON, Image Update, and Status Handling)
 app.put('/:id', authMiddleware, roleGuard(['publisher', 'admin']), async (c) => {
-  const id = c.req.param('id')
-  const user = c.get('user')
-  const body = await c.req.parseBody()
-  const image = body['image']
-  // Safely extract fields
-  const title = body['title'] as string
-  const content = body['content'] as string
-  const mini_desc = body['mini_desc'] as string || ''
-  const tags = body['tags'] as string || ''
-  const requestedStatus = (body['status'] as string || '').toLowerCase()
+  try {
+    const id = c.req.param('id')
+    const user = c.get('user')
 
-  // 1. Check ownership
-  const blog = await c.env.DB.prepare('SELECT * FROM blogs WHERE id = ?').bind(id).first()
-  if (!blog) return c.json({ message: 'Not found' }, 404)
+    let body: any
+    let image: any = null
 
-  if (blog.user_id !== user.sub && user.role !== 'admin') {
-    return c.json({ message: 'Unauthorized' }, 403)
-  }
-
-  // 2. Handle Image Upload if present
-  let photo_filename = blog.photo_filename // keep existing by default
-  if (image && image instanceof File) {
-    const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
-    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp']
-    const ext = image.name ? image.name.toLowerCase().substring(image.name.lastIndexOf('.')) : ''
-    const isValidType = validMimeTypes.includes(image.type) || validExtensions.includes(ext)
-
-    if (image.size > 8 * 1024 * 1024) {
-      return c.json({ message: 'File too large. Max 8MB allowed.' }, 400)
-    }
-    if (!isValidType) {
-      return c.json({ message: 'Invalid file type. Only JPG, PNG and WEBP are allowed.' }, 400)
+    const contentType = c.req.header('content-type') || ''
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await c.req.parseBody()
+      body = formData
+      image = formData['image']
+    } else {
+      body = await c.req.json().catch(() => ({}))
     }
 
-    photo_filename = `blog/${Date.now()}_${image.name}`
-    await c.env.BUCKET.put(photo_filename as string, image)
-  }
+    // 1. Check ownership
+    const blog = await c.env.DB.prepare('SELECT * FROM blogs WHERE id = ?').bind(id).first() as any
+    if (!blog) return c.json({ message: 'Not found' }, 404)
 
-  // 3. Determine status
-  let status = 'pending'
-  if (requestedStatus === 'draft') {
-    status = 'draft'
-  } else if (user.role === 'admin') {
-    status = 'approved'
-  }
+    if (blog.user_id !== user.sub && user.role !== 'admin') {
+      return c.json({ message: 'Unauthorized' }, 403)
+    }
 
-  // 4. Update DB
-  await c.env.DB.prepare(`
-        UPDATE blogs 
-        SET title = ?, content = ?, mini_desc = ?, tags = ?, photo_filename = ?, status = ?, approval_reason = NULL, updated_at = CURRENT_TIMESTAMP
+    // Safely extract fields with fallback to existing
+    const title = body['title'] !== undefined ? String(body['title']) : blog.title
+    const content = body['content'] !== undefined ? String(body['content']) : blog.content
+    const mini_desc = body['mini_desc'] !== undefined ? String(body['mini_desc']) : (blog.mini_desc || '')
+    const tags = body['tags'] !== undefined ? String(body['tags']) : (blog.tags || '')
+    const requestedStatus = body['status'] !== undefined ? String(body['status']).toLowerCase() : ''
+
+    // 2. Handle Image Upload if present
+    let photo_filename = blog.photo_filename // keep existing by default
+    if (image && image instanceof File) {
+      const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp']
+      const validExtensions = ['.jpg', '.jpeg', '.png', '.webp']
+      const ext = image.name ? image.name.toLowerCase().substring(image.name.lastIndexOf('.')) : ''
+      const isValidType = validMimeTypes.includes(image.type) || validExtensions.includes(ext)
+
+      if (image.size > 8 * 1024 * 1024) {
+        return c.json({ message: 'File too large. Max 8MB allowed.' }, 400)
+      }
+      if (!isValidType) {
+        return c.json({ message: 'Invalid file type. Only JPG, PNG and WEBP are allowed.' }, 400)
+      }
+
+      photo_filename = `blog/${Date.now()}_${image.name}`
+      await c.env.BUCKET.put(photo_filename as string, image)
+    }
+
+    // 3. Determine status
+    let status = blog.status
+    if (requestedStatus === 'draft') {
+      status = 'draft'
+    } else if (requestedStatus === 'published' || requestedStatus === 'pending') {
+      status = user.role === 'admin' ? 'approved' : 'pending'
+    } else if (user.role === 'admin' && blog.status === 'approved') {
+      status = 'approved'
+    }
+
+    // 4. Update DB
+    await c.env.DB.prepare(`
+          UPDATE blogs 
+          SET title = ?, content = ?, mini_desc = ?, tags = ?, photo_filename = ?, status = ?, approval_reason = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+      `).bind(title, content, mini_desc, tags, photo_filename, status, id).run()
+
+    // Fetch and return full updated object
+    const updatedBlog = await c.env.DB.prepare(`
+        SELECT *, mini_desc as description, photo_filename as image, tags as category 
+        FROM blogs 
         WHERE id = ?
-    `).bind(title, content, mini_desc, tags, photo_filename, status, id).run()
+    `).bind(id).first()
 
-  // Fetch and return full updated object
-  const updatedBlog = await c.env.DB.prepare(`
-      SELECT *, mini_desc as description, photo_filename as image, tags as category 
-      FROM blogs 
-      WHERE id = ?
-  `).bind(id).first()
-
-  return c.json(enrichBlog(updatedBlog))
+    return c.json(enrichBlog(updatedBlog))
+  } catch (e: any) {
+    console.error('Update Blog Error:', e)
+    return c.json({ message: 'Internal Server Error', error: e.message }, 500)
+  }
 })
 
 // Admin: Approve/Reject
