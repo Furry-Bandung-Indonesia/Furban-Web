@@ -4,19 +4,19 @@ export class RateLimiter {
   constructor(private kv: KVNamespace) {}
 
   /**
-   * Check if a Telegram user exceeded message rate limit (10 msgs / 60s)
+   * Check if a Telegram user exceeded message rate limit (30 msgs / 60s)
    */
   async checkMessageLimit(telegramUserId: number): Promise<{ allowed: boolean; remaining: number }> {
     const key = `rate:msg:${telegramUserId}`
-    return this.checkLimit(key, 10, 60)
+    return this.checkLimit(key, 30, 60)
   }
 
   /**
-   * Check if a Telegram user exceeded AI API limit (50 calls / 3600s)
+   * Check if a Telegram user exceeded AI API limit (200 calls / 3600s)
    */
   async checkAiLimit(telegramUserId: number): Promise<{ allowed: boolean; remaining: number }> {
     const key = `rate:ai:${telegramUserId}`
-    return this.checkLimit(key, 50, 3600)
+    return this.checkLimit(key, 200, 3600)
   }
 
   private async checkLimit(key: string, maxLimit: number, windowSeconds: number): Promise<{ allowed: boolean; remaining: number }> {

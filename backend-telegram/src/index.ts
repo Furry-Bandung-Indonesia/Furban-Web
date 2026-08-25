@@ -294,10 +294,10 @@ app.post('/webhook/:secret?', async (c) => {
     return c.json({ ok: true })
   }
 
-  // 6. Check AI Call Rate Limit (50 calls / hour)
+  // 6. Check AI Call Rate Limit (200 calls / hour)
   const aiRate = await rateLimiter.checkAiLimit(telegramUserId)
   if (!aiRate.allowed) {
-    await telegramClient.sendMessage(chatId, '⚠️ Hourly AI assistant rate limit reached (50 queries/hour). Please wait for the limit to reset.', { parseMode: 'HTML' })
+    await telegramClient.sendMessage(chatId, '⚠️ Hourly AI assistant rate limit reached (200 queries/hour). Please wait for the limit to reset.', { parseMode: 'HTML' })
     return c.json({ ok: true })
   }
 

@@ -70,12 +70,58 @@ export const eventTools: ToolDefinition[] = [
           sales_open_time: { type: 'string', description: 'When ticket sales automatically open (YYYY-MM-DD HH:MM:SS format, optional)' },
           sales_close_time: { type: 'string', description: 'When ticket sales automatically stop/close (YYYY-MM-DD HH:MM:SS format, optional)' },
           additional_link: { type: 'string', description: 'Optional external website link or guide' },
-          food_enabled: { type: 'boolean', description: 'Enable food options' },
-          food_multi_select: { type: 'boolean', description: 'Allow multiple food choices' },
-          food_options: { type: 'array', items: { type: 'string' }, description: 'List of food option names' },
-          drinks_enabled: { type: 'boolean', description: 'Enable drink options' },
-          drinks_multi_select: { type: 'boolean', description: 'Allow multiple drink choices' },
-          drink_options: { type: 'array', items: { type: 'string' }, description: 'List of drink option names' },
+          food_enabled: { type: 'boolean', description: 'Enable food options for attendees' },
+          food_multi_select: { type: 'boolean', description: 'Allow attendees to select multiple food choices' },
+          food_options: {
+            type: 'array',
+            description: 'List of food options. Each option has a name, price (in IDR, 0 for included/free), and optional choices list. Example: [{"name": "Ayam Geprek", "price": 5000}, {"name": "Nasi Goreng", "price": 0}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Food item name (e.g. Ayam Geprek)' },
+                price: { type: 'number', description: 'Price in IDR (0 if included in ticket price)' },
+                choices: {
+                  type: 'array',
+                  description: 'Optional sub-choices or variations',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Choice name' },
+                      price: { type: 'number', description: 'Choice additional price in IDR (default 0)' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
+          drinks_enabled: { type: 'boolean', description: 'Enable drink options for attendees' },
+          drinks_multi_select: { type: 'boolean', description: 'Allow attendees to select multiple drink choices' },
+          drink_options: {
+            type: 'array',
+            description: 'List of drink options. Each option has a name, price (in IDR, 0 for included/free), and optional choices list. Example: [{"name": "Es Teh Manis", "price": 0}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Drink item name' },
+                price: { type: 'number', description: 'Price in IDR (0 if included in ticket price)' },
+                choices: {
+                  type: 'array',
+                  description: 'Optional sub-choices or variations',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Choice name' },
+                      price: { type: 'number', description: 'Choice additional price in IDR (default 0)' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
           status: { type: 'string', enum: ['draft', 'published'], description: 'Initial event status (default draft)' },
           banner_file_id: { type: 'string', description: 'Telegram photo file_id to upload as the event banner' },
         },
@@ -87,7 +133,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'update_event',
-      description: 'Update an existing event. Can update details, sales status, auto-close timing, coordinates from Google Maps, banner, or ToS.',
+      description: 'Update an existing event. Can update details, sales status, auto-close timing, coordinates from Google Maps, banner, food/drink options with prices, or ToS.',
       parameters: {
         type: 'object',
         properties: {
@@ -107,11 +153,135 @@ export const eventTools: ToolDefinition[] = [
           additional_link: { type: 'string' },
           food_enabled: { type: 'boolean' },
           food_multi_select: { type: 'boolean' },
-          food_options: { type: 'array', items: { type: 'string' } },
+          food_options: {
+            type: 'array',
+            description: 'List of food options with prices in IDR. Example: [{"name": "Ayam Geprek", "price": 5000}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                price: { type: 'number', description: 'Price in IDR' },
+                choices: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      price: { type: 'number' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
           drinks_enabled: { type: 'boolean' },
           drinks_multi_select: { type: 'boolean' },
-          drink_options: { type: 'array', items: { type: 'string' } },
+          drink_options: {
+            type: 'array',
+            description: 'List of drink options with prices in IDR. Example: [{"name": "Es Teh Manis", "price": 0}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                price: { type: 'number', description: 'Price in IDR' },
+                choices: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      price: { type: 'number' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
           banner_file_id: { type: 'string', description: 'Telegram photo file_id for new banner' },
+        },
+        required: ['eventId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_event_food_options',
+      description: 'Configure food options, prices (in IDR), sub-choices, and enablement for an event.',
+      parameters: {
+        type: 'object',
+        properties: {
+          eventId: { type: 'string', description: 'The UUID of the event' },
+          food_enabled: { type: 'boolean', description: 'Whether food selection is enabled' },
+          food_multi_select: { type: 'boolean', description: 'Whether attendees can select multiple food items' },
+          food_options: {
+            type: 'array',
+            description: 'List of food options with prices. Example: [{"name": "Ayam Geprek", "price": 5000}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Food item name' },
+                price: { type: 'number', description: 'Price in IDR (0 if included in ticket)' },
+                choices: {
+                  type: 'array',
+                  description: 'Optional sub-choices/variants',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      price: { type: 'number' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
+        },
+        required: ['eventId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_event_drink_options',
+      description: 'Configure drink options, prices (in IDR), sub-choices, and enablement for an event.',
+      parameters: {
+        type: 'object',
+        properties: {
+          eventId: { type: 'string', description: 'The UUID of the event' },
+          drinks_enabled: { type: 'boolean', description: 'Whether drink selection is enabled' },
+          drinks_multi_select: { type: 'boolean', description: 'Whether attendees can select multiple drink items' },
+          drink_options: {
+            type: 'array',
+            description: 'List of drink options with prices. Example: [{"name": "Es Jeruk", "price": 3000}]',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Drink item name' },
+                price: { type: 'number', description: 'Price in IDR (0 if included in ticket)' },
+                choices: {
+                  type: 'array',
+                  description: 'Optional sub-choices/variants',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      price: { type: 'number' }
+                    },
+                    required: ['name']
+                  }
+                }
+              },
+              required: ['name']
+            }
+          },
         },
         required: ['eventId'],
       },
@@ -224,6 +394,22 @@ export async function executeEventTool(
     case 'set_event_sales_status': {
       const { eventId, ...salesData } = args
       return apiClient.ticketing('PATCH', `/api/events/${eventId}/sales-status`, salesData)
+    }
+
+    case 'set_event_food_options': {
+      const { eventId, ...data } = args
+      if (Array.isArray(data.food_options)) {
+        data.food_options = JSON.stringify(data.food_options)
+      }
+      return apiClient.ticketing('PUT', `/api/events/${eventId}`, data)
+    }
+
+    case 'set_event_drink_options': {
+      const { eventId, ...data } = args
+      if (Array.isArray(data.drink_options)) {
+        data.drink_options = JSON.stringify(data.drink_options)
+      }
+      return apiClient.ticketing('PUT', `/api/events/${eventId}`, data)
     }
 
     case 'create_event': {

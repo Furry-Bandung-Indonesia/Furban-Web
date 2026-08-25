@@ -554,7 +554,7 @@ const loadUsers = async () => {
   loading.value = true
   try {
     const u = await authApi.getUsers()
-    users.value = Array.isArray(u) ? u : (u.data || [])
+    users.value = Array.isArray(u) ? u : (u.users || u.data || [])
   } catch (e) {
     console.error('Error loading users:', e)
   } finally {

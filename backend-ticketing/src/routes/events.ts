@@ -220,10 +220,10 @@ events.post('/', authMiddleware, roleGuard(['admin']), async (c) => {
       body.end_time,
       body.food_enabled === '0' || body.food_enabled === false ? 0 : (body.food_enabled ? 1 : 0),
       body.food_multi_select === '0' || body.food_multi_select === false ? 0 : (body.food_multi_select ? 1 : 0),
-      body.food_options || '[]',
+      typeof body.food_options === 'object' && body.food_options !== null ? JSON.stringify(body.food_options) : (body.food_options || '[]'),
       body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : (body.drinks_enabled ? 1 : 0),
       body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : (body.drinks_multi_select ? 1 : 0),
-      body.drink_options || '[]',
+      typeof body.drink_options === 'object' && body.drink_options !== null ? JSON.stringify(body.drink_options) : (body.drink_options || '[]'),
       body.status || 'draft',
       body.sales_status || 'available',
       body.sales_open_time || null,
@@ -286,7 +286,11 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     for (const f of stringFields) {
       if (body[f] !== undefined) {
         updates.push(`${f} = ?`)
-        values.push(body[f] || (f.endsWith('_options') ? '[]' : null))
+        if (f.endsWith('_options') && typeof body[f] === 'object' && body[f] !== null) {
+          values.push(JSON.stringify(body[f]))
+        } else {
+          values.push(body[f] || (f.endsWith('_options') ? '[]' : null))
+        }
       }
     }
 
@@ -304,8 +308,8 @@ events.put('/:eventId', authMiddleware, eventPermission('eventId'), requireEvent
     if (body.location_long !== undefined) { updates.push('location_long = ?'); values.push(parseFloat(body.location_long)) }
     if (body.food_enabled !== undefined) { updates.push('food_enabled = ?'); values.push(body.food_enabled === '0' || body.food_enabled === false ? 0 : 1) }
     if (body.food_multi_select !== undefined) { updates.push('food_multi_select = ?'); values.push(body.food_multi_select === '0' || body.food_multi_select === false ? 0 : 1) }
-
     if (body.drinks_enabled !== undefined) { updates.push('drinks_enabled = ?'); values.push(body.drinks_enabled === '0' || body.drinks_enabled === false ? 0 : 1) }
+    if (body.drinks_multi_select !== undefined) { updates.push('drinks_multi_select = ?'); values.push(body.drinks_multi_select === '0' || body.drinks_multi_select === false ? 0 : 1) }
 
     // Handle banner upload
     if (bannerFile && bannerFile.size > 0) {

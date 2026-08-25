@@ -54,12 +54,32 @@ app.get('/users', async (c) => {
       query += ` WHERE ` + conditions.join(' AND ')
     }
 
-    query += ` ORDER BY created_at DESC LIMIT 100`
+    // Build count query before adding ORDER/LIMIT
+    const countQuery = query.replace(/SELECT .+ FROM/, 'SELECT COUNT(*) as total FROM')
+    const countStmt = c.env.DB.prepare(countQuery)
+    const countResult = bindings.length > 0
+      ? await countStmt.bind(...bindings).first()
+      : await countStmt.first()
+    const total = (countResult as any)?.total || 0
+
+    // Pagination params
+    const page = Math.max(1, parseInt(c.req.query('page') || '1', 10))
+    const limit = Math.min(500, Math.max(1, parseInt(c.req.query('limit') || '500', 10)))
+    const offset = (page - 1) * limit
+
+    query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    bindings.push(limit, offset)
 
     const stmt = c.env.DB.prepare(query)
-    const { results } = bindings.length > 0 ? await stmt.bind(...bindings).all() : await stmt.all()
+    const { results } = await stmt.bind(...bindings).all()
 
-    return c.json(results || [])
+    return c.json({
+      users: results || [],
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    })
   } catch (e: any) {
     console.error('Get Users Error:', e)
     return c.json({ message: 'Failed to get users', error: e.message }, 500)

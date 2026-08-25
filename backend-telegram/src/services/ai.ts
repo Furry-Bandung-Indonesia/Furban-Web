@@ -102,7 +102,7 @@ export class AiEngine {
       })),
     ]
 
-    const MAX_TOOL_ITERATIONS = 5
+    const MAX_TOOL_ITERATIONS = 25
     let currentIteration = 0
     let finalAssistantText = ''
 
