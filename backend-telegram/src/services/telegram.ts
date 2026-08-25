@@ -6,6 +6,61 @@ export class TelegramClient {
   }
 
   /**
+   * Escape special characters for Telegram HTML
+   */
+  static escapeHTML(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+  }
+
+  /**
+   * Convert standard Markdown from AI into clean Telegram HTML
+   */
+  static markdownToHTML(markdown: string): string {
+    if (!markdown) return ''
+
+    // 1. Extract code blocks and inline code
+    const codeBlocks: string[] = []
+    let text = markdown.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, _lang, code) => {
+      const idx = codeBlocks.length
+      codeBlocks.push(`<pre><code>${TelegramClient.escapeHTML(code.trim())}</code></pre>`)
+      return `@@CODEBLOCK_${idx}@@`
+    })
+
+    const inlineCodes: string[] = []
+    text = text.replace(/`([^`]+)`/g, (_, code) => {
+      const idx = inlineCodes.length
+      inlineCodes.push(`<code>${TelegramClient.escapeHTML(code)}</code>`)
+      return `@@INLINECODE_${idx}@@`
+    })
+
+    // 2. Escape HTML for the rest of the text
+    text = TelegramClient.escapeHTML(text)
+
+    // 3. Format bold: **text** or __text__
+    text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    text = text.replace(/__(.*?)__/g, '<b>$1</b>')
+
+    // 4. Format italic: *text* or _text_
+    text = text.replace(/(?<!\w)\*([^*\n]+)\*(?!\w)/g, '<i>$1</i>')
+    text = text.replace(/(?<!\w)_([^_\n]+)_(?!\w)/g, '<i>$1</i>')
+
+    // 5. Format strikethrough: ~~text~~
+    text = text.replace(/~~(.*?)~~/g, '<s>$1</s>')
+
+    // 6. Format links: [title](url)
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+
+    // 7. Restore code blocks & inline code
+    text = text.replace(/@@INLINECODE_(\d+)@@/g, (_, idx) => inlineCodes[parseInt(idx, 10)] || '')
+    text = text.replace(/@@CODEBLOCK_(\d+)@@/g, (_, idx) => codeBlocks[parseInt(idx, 10)] || '')
+
+    return text
+  }
+
+  /**
    * Escape special characters for Telegram MarkdownV2
    */
   static escapeMarkdownV2(text: string): string {

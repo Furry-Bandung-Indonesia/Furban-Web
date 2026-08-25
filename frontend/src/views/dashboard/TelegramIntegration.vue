@@ -331,7 +331,7 @@ async function loadData() {
   loading.value = true
   try {
     // Refresh current user profile
-    await authStore.getProfile()
+    await authStore.checkAuth(true)
 
     // Fetch list of telegram-linked users (admin only)
     if (authStore.isAdmin) {

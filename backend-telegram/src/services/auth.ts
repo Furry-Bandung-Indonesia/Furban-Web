@@ -1,3 +1,4 @@
+import { sign } from 'hono/jwt'
 import type { Bindings, FurbanUserMapping } from '../types'
 
 export class AuthService {
@@ -7,7 +8,9 @@ export class AuthService {
    * Generate or retrieve a short-lived service JWT with admin privileges
    */
   async getServiceToken(): Promise<string> {
-    const cacheKey = 'svc_token'
+    const secretHash = this.simpleHash(this.env.JWT_SECRET || '')
+    const cacheKey = `svc_token:${secretHash}`
+
     try {
       const cached = await this.env.KV.get(cacheKey)
       if (cached) return cached
@@ -84,10 +87,9 @@ export class AuthService {
   }
 
   /**
-   * Simple standard Web Crypto HMAC-SHA256 JWT Generator
+   * Standard Hono JWT Generator
    */
   private async createJwt(payload: Record<string, any>): Promise<string> {
-    const header = { alg: 'HS256', typ: 'JWT' }
     const now = Math.floor(Date.now() / 1000)
     const fullPayload = {
       ...payload,
@@ -95,33 +97,15 @@ export class AuthService {
       exp: now + 3600, // 1 hour
     }
 
-    const encode = (obj: any) => {
-      const json = JSON.stringify(obj)
-      return btoa(json).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    return sign(fullPayload, this.env.JWT_SECRET, 'HS256')
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i)
+      hash |= 0
     }
-
-    const unsignedToken = `${encode(header)}.${encode(fullPayload)}`
-
-    const encoder = new TextEncoder()
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(this.env.JWT_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    )
-
-    const signatureBuffer = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      encoder.encode(unsignedToken)
-    )
-
-    const signature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-      .replace(/=/g, '')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-
-    return `${unsignedToken}.${signature}`
+    return Math.abs(hash).toString(36)
   }
 }

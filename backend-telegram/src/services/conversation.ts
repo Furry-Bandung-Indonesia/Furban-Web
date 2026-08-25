@@ -14,22 +14,21 @@ export class ConversationManager {
     defaultModel: string
   ): Promise<ConversationState> {
     const key = `conv:${chatId}`
+    const activeModel = await this.getActiveModel(chatId, defaultModel)
 
     try {
       const raw = await this.kv.get(key)
       if (raw) {
         const state = JSON.parse(raw) as ConversationState
-        // Ensure properties exist
+        // Ensure properties exist and always reflect active model preference
         state.furban_user_uuid = furbanUserUuid
         state.furban_role = furbanRole
-        state.active_model = state.active_model || (await this.getActiveModel(chatId, defaultModel))
+        state.active_model = activeModel
         return state
       }
     } catch (e) {
       console.warn('Failed to load conversation from KV:', e)
     }
-
-    const activeModel = await this.getActiveModel(chatId, defaultModel)
 
     return {
       telegram_user_id: telegramUserId,
@@ -103,6 +102,15 @@ export class ConversationManager {
     const key = `model:${chatId}`
     try {
       await this.kv.put(key, modelId)
+
+      // Also update active_model directly in stored conversation state if it exists
+      const convKey = `conv:${chatId}`
+      const raw = await this.kv.get(convKey)
+      if (raw) {
+        const state = JSON.parse(raw) as ConversationState
+        state.active_model = modelId
+        await this.kv.put(convKey, JSON.stringify(state), { expirationTtl: 86400 })
+      }
     } catch (e) {
       console.error('Failed to set active model in KV:', e)
     }

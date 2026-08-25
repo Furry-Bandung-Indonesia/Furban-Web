@@ -1,16 +1,19 @@
 import type { ToolDefinition } from '../types'
 import { ApiClient } from '../services/api-client'
 import { TelegramClient } from '../services/telegram'
+import { DEFAULT_EVENT_TOS } from '../config/default-tos'
+import { resolveGoogleMapsLocation } from '../services/maps'
 
 export const eventTools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
       name: 'list_events',
-      description: 'List published events with optional pagination and search filter.',
+      description: 'List events across all statuses (draft, published, closed) or filtered by status. Shows event name, status, dates, and venue.',
       parameters: {
         type: 'object',
         properties: {
+          status: { type: 'string', enum: ['all', 'draft', 'published', 'closed'], description: 'Filter by status. Default is "all" to show all events.' },
           page: { type: 'integer', description: 'Page number (default 1)' },
           limit: { type: 'integer', description: 'Items per page (default 20, max 100)' },
           search: { type: 'string', description: 'Search term for name, description, or location' },
@@ -22,7 +25,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'get_event_detail',
-      description: 'Get public event details along with available ticket tiers.',
+      description: 'Get full event details along with available ticket tiers and configuration.',
       parameters: {
         type: 'object',
         properties: {
@@ -35,8 +38,22 @@ export const eventTools: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'parse_google_maps_url',
+      description: 'Extract exact latitude, longitude, and place/venue name from a Google Maps URL (including short links like maps.app.goo.gl/xxx or goo.gl/maps/xxx).',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'Google Maps link or short link' },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_event',
-      description: 'Create a new event in the ticketing system. Optionally attach a banner using banner_file_id from Telegram.',
+      description: 'Create a new event in the ticketing system. Supports attaching banner photo, Google Maps link for auto-coordinates, and default Terms of Service.',
       parameters: {
         type: 'object',
         properties: {
@@ -47,7 +64,8 @@ export const eventTools: ToolDefinition[] = [
           location_name: { type: 'string', description: 'Venue or location name' },
           location_lat: { type: 'number', description: 'Latitude coordinate' },
           location_long: { type: 'number', description: 'Longitude coordinate' },
-          tos_text: { type: 'string', description: 'Terms of service for attendees' },
+          google_maps_url: { type: 'string', description: 'Google Maps link (e.g. maps.app.goo.gl/xxx) to automatically extract lat/long coordinates' },
+          tos_text: { type: 'string', description: 'Terms of service for attendees. Set to "default" to use standard Furban Terms & Conditions template.' },
           food_enabled: { type: 'boolean', description: 'Enable food options' },
           food_multi_select: { type: 'boolean', description: 'Allow multiple food choices' },
           food_options: { type: 'array', items: { type: 'string' }, description: 'List of food option names' },
@@ -65,7 +83,7 @@ export const eventTools: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'update_event',
-      description: 'Update an existing event. Can update details or attach a new banner.',
+      description: 'Update an existing event. Can update details, coordinates from Google Maps, banner, or ToS.',
       parameters: {
         type: 'object',
         properties: {
@@ -77,7 +95,8 @@ export const eventTools: ToolDefinition[] = [
           location_name: { type: 'string' },
           location_lat: { type: 'number' },
           location_long: { type: 'number' },
-          tos_text: { type: 'string' },
+          google_maps_url: { type: 'string', description: 'Google Maps link to extract lat/long coordinates' },
+          tos_text: { type: 'string', description: 'Terms of service. Set to "default" to reset to standard Furban ToS template.' },
           food_enabled: { type: 'boolean' },
           food_multi_select: { type: 'boolean' },
           food_options: { type: 'array', items: { type: 'string' } },
@@ -161,17 +180,43 @@ export async function executeEventTool(
       const params = new URLSearchParams()
       if (args.page) params.append('page', String(args.page))
       if (args.limit) params.append('limit', String(args.limit))
+      if (args.status && args.status !== 'all') params.append('status', args.status)
       if (args.search) params.append('search', args.search)
       const q = params.toString() ? `?${params.toString()}` : ''
-      return apiClient.ticketing('GET', `/api/events${q}`)
+
+      // Use management endpoint to return all events (draft, published, closed)
+      const result = await apiClient.ticketing('GET', `/api/manage${q}`)
+      return result
     }
 
     case 'get_event_detail': {
-      return apiClient.ticketing('GET', `/api/events/${args.eventId}`)
+      return apiClient.ticketing('GET', `/api/manage/${args.eventId}`)
+    }
+
+    case 'parse_google_maps_url': {
+      return resolveGoogleMapsLocation(args.url)
     }
 
     case 'create_event': {
-      const { banner_file_id, ...eventData } = args
+      const { banner_file_id, google_maps_url, ...eventData } = args
+
+      // Auto-populate default ToS if requested or omitted
+      if (!eventData.tos_text || eventData.tos_text.toLowerCase() === 'default') {
+        eventData.tos_text = DEFAULT_EVENT_TOS
+      }
+
+      // Auto-extract coordinates if Google Maps link is provided
+      const mapsInput = google_maps_url || (typeof eventData.location_name === 'string' && eventData.location_name.includes('http') ? eventData.location_name : null)
+      if (mapsInput && (eventData.location_lat === undefined || eventData.location_long === undefined)) {
+        const coords = await resolveGoogleMapsLocation(mapsInput)
+        if (coords.success && coords.latitude !== null && coords.longitude !== null) {
+          eventData.location_lat = coords.latitude
+          eventData.location_long = coords.longitude
+          if ((!eventData.location_name || eventData.location_name.includes('http')) && coords.place_name) {
+            eventData.location_name = coords.place_name
+          }
+        }
+      }
 
       // Normalize array options to JSON strings if passed as arrays
       if (Array.isArray(eventData.food_options)) {
@@ -205,7 +250,23 @@ export async function executeEventTool(
     }
 
     case 'update_event': {
-      const { eventId, banner_file_id, ...updateData } = args
+      const { eventId, banner_file_id, google_maps_url, ...updateData } = args
+
+      if (updateData.tos_text && updateData.tos_text.toLowerCase() === 'default') {
+        updateData.tos_text = DEFAULT_EVENT_TOS
+      }
+
+      const mapsInput = google_maps_url || (typeof updateData.location_name === 'string' && updateData.location_name.includes('http') ? updateData.location_name : null)
+      if (mapsInput && (updateData.location_lat === undefined || updateData.location_long === undefined)) {
+        const coords = await resolveGoogleMapsLocation(mapsInput)
+        if (coords.success && coords.latitude !== null && coords.longitude !== null) {
+          updateData.location_lat = coords.latitude
+          updateData.location_long = coords.longitude
+          if ((!updateData.location_name || updateData.location_name.includes('http')) && coords.place_name) {
+            updateData.location_name = coords.place_name
+          }
+        }
+      }
 
       if (Array.isArray(updateData.food_options)) {
         updateData.food_options = JSON.stringify(updateData.food_options)
