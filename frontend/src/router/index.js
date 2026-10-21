@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
+import Maintenance from '../views/Maintenance.vue'
 import { useAuthStore } from '../stores/auth.js'
 
 // Helper to handle lazy-load chunk failures (common after redeployments)
@@ -22,6 +23,11 @@ function lazyLoad(importFn) {
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/maintenance',
+      name: 'maintenance',
+      component: Maintenance
+    },
     {
       path: '/',
       name: 'home',
