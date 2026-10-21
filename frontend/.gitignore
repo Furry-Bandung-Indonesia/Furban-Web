@@ -30,3 +30,6 @@ coverage
 *.tsbuildinfo
 .env.production
 .env
+
+# Wrangler local dev state (sqlite, wal, shm, db — never commit these)
+.wrangler/
