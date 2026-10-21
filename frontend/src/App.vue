@@ -38,7 +38,8 @@ export default {
         '/photographer',
         '/dashboard',
         '/event/manage',
-        '/event/payment'
+        '/event/payment',
+        '/maintenance'
       ]
       return hiddenRoutes.some(path => route.path.startsWith(path))
     })
