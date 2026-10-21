@@ -40,10 +40,12 @@
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
     <script>
-      // Check if dark mode is enabled in localStorage
-      const isDarkMode = localStorage.getItem('theme') === 'dark';
-      if (isDarkMode) {
-        document.body.classList.add('dark-mode');
+      // Apply dark mode immediately before render (default is dark mode in theme store)
+      const savedTheme = localStorage.getItem('darkMode');
+      if (savedTheme !== 'false') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
       }
     </script>
     <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "e391524d25f64987a663afe6726c938f"}'></script><!-- End Cloudflare Web Analytics -->

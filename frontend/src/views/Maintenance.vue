@@ -1,11 +1,11 @@
 <template>
-  <div class="page">
-    <img src="/heri-small.png" alt="Heri" />
-    <div class="text">
-      <h1>We will return shortly</h1>
-      <p>
+  <div class="page min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex items-center justify-center">
+    <img src="/heri-small.png" alt="Heri" class="w-[220px] flex-shrink-0" />
+    <div class="text max-w-[480px]">
+      <h1 class="text-3xl font-bold mb-4 text-gray-900 dark:text-white">We will return shortly</h1>
+      <p class="leading-relaxed text-gray-600 dark:text-gray-300">
         Furban Web Community is currently under temporary maintenance. This maintenance
-        is scheduled to end on <strong>24 October at 22:00 UTC+7</strong>. This
+        is scheduled to end on <strong class="text-gray-900 dark:text-white">24 October at 22:00 UTC+7</strong>. This
         temporary suspension is to ensure safety while we patch an update on our server.
       </p>
     </div>
@@ -17,31 +17,8 @@
 
 <style scoped>
 .page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 2.5rem;
   padding: 2rem;
-}
-
-.page img {
-  width: 220px;
-  flex-shrink: 0;
-}
-
-.text {
-  max-width: 480px;
-}
-
-.text h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
-
-.text p {
-  line-height: 1.7;
 }
 
 @media (max-width: 600px) {
